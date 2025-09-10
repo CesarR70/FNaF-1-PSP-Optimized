@@ -15,8 +15,7 @@ Unlike the release build, this version is **not playable out of the box** and mu
 ## ⚙️ Requirements
 Before building, make sure you have:  
 - A working **PSP toolchain** (such as `psptoolchain` or `pspsdk`)  
-- `make` and a C++ compiler that works with your PSP toolchain  
-- PSP assets (not included in this repo — see the release version)  
+- `make` and a C++ compiler that works with your PSP toolchain   
 
 ---
 
