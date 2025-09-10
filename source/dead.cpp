@@ -1,71 +1,98 @@
 #include "included/dead.hpp"
 
-namespace dead{
+namespace dead {
 
-    float waitFrames = 600;
+    int waitFrames = 600;
 
-    void reset(){
+    // Deferred transition (safer on PSP)
+    static bool requestMenu = false;
+    static bool transitioning = false;
+
+    void reset() {
         waitFrames = 600;
+        requestMenu = false;
+        transitioning = false;
     }
 
-    namespace n_static{
+    namespace n_static {
         int whichFrameStatic = 0;
-        float waitFrames2 = 5;
+        int waitFrames2 = 5;
 
-        void renderStatic(){
-            drawSpriteAlpha(0, 0, 480, 272, image::global::n_static::staticFrames[whichFrameStatic], 0, 0, 0);
+        static inline int clamp(int v, int lo, int hi) {
+            return (v < lo) ? lo : (v > hi ? hi : v);
         }
-        void animateStatic(){
-            if (waitFrames2 <= 0){
-                whichFrameStatic += 1;
 
-                if (whichFrameStatic > 3){
-                    whichFrameStatic = 0;
-                }
-
-                waitFrames2 = 5;
+        void renderStatic() {
+            int idx = clamp(whichFrameStatic, 0, 3);
+            auto* tex = image::global::n_static::staticFrames[idx];
+            if (tex) {
+                drawSpriteAlpha(0, 0, 480, 272, tex, 0, 0, 0);
             }
-            else{
+        }
+        void animateStatic() {
+            if (waitFrames2 <= 0) {
+                whichFrameStatic += 1;
+                if (whichFrameStatic > 3) whichFrameStatic = 0;
+                waitFrames2 = 5;
+            } else {
                 waitFrames2 -= 1;
             }
         }
     }
 
-    namespace wait{
-        void waitForFrames(){
-            if (waitFrames <= 0){
-                initMenu();
-                waitFrames = 600;
-            }
-            else{
+    namespace wait {
+        void waitForFrames() {
+            if (requestMenu) return; // already scheduled
+            if (waitFrames <= 0) {
+                initMenu();          // schedule transition
+                waitFrames = 600;    // reset for next time
+            } else {
                 waitFrames -= 1;
             }
         }
 
-        void initMenu(){
-            state::isDead = false;
-
-            sfx::jumpscare::unloadDeadSound();
-            
-            sprite::UI::office::unloadCamUi();
-            sprite::UI::office::unloadPowerInfo();
-            sprite::office::unloadDoors();
-            sprite::office::unloadButtons();
-
-            //sfx::jumpscare::unloadJumpscareSound();
-
-            save::readData();
-
-            image::menu::loadMenuBackground();
-            image::menu::loadLogo();
-            image::menu::loadCopyright();
-            image::menu::loadTextAndCursor();
-            sprite::menu::loadStar();
-
-            music::menu::loadMenuMusic();
-            music::menu::playMenuMusic();
-
-            state::isMenu = true;
+        // Now schedules; actual work happens in dead::postFrame()
+        void initMenu() {
+            requestMenu = true;
         }
+    }
+
+    // Call this after swap in your main loop (like ending/powerout):
+    // - sceGuFinish();
+    // - sceGuSync(...);
+    // - sceDisplayWaitVblankStartCB();
+    // - sceGuSwapBuffers();
+    // - dead::postFrame();
+    void postFrame() {
+        if (!requestMenu || transitioning) return;
+        transitioning = true;
+
+        // Leave dead state first
+        state::isDead = false;
+
+        // Stop and free related audio (safe even if already done)
+        sfx::jumpscare::unloadDeadSound();
+
+        // Free office UI resources (idempotent unloads recommended)
+        sprite::UI::office::unloadCamUi();
+        sprite::UI::office::unloadPowerInfo();
+        sprite::office::unloadDoors();
+        sprite::office::unloadButtons();
+
+        // Load menu assets
+        image::menu::loadMenuBackground();
+        image::menu::loadLogo();
+        image::menu::loadCopyright();
+        image::menu::loadTextAndCursor();
+        sprite::menu::loadStar();
+
+        music::menu::loadMenuMusic();
+        music::menu::playMenuMusic();
+
+        state::isMenu = true;
+
+        // Done
+        requestMenu = false;
+        transitioning = false;
     }
 }

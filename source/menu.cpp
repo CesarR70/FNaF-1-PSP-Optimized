@@ -3,7 +3,7 @@
 namespace menu{
 
     int whichFrame = 0;
-    float waitFrames = 10;
+    int waitFrames = 10;
 
     namespace render {
         void renderBackground() {
@@ -42,7 +42,7 @@ namespace menu{
 
     namespace n_static{
         int whichFrameStatic = 0;
-        float waitFrames2 = 5;
+        int waitFrames2 = 5;
 
         void renderStatic(){
             drawSpriteAlpha(0, 0, 480, 272, image::global::n_static::staticFrames[whichFrameStatic], 0, 0, 0);
@@ -65,8 +65,8 @@ namespace menu{
 
     namespace menuCursor{
         int cursorPos = 0;
-        float cursorLimit = 1;
-        float posY;
+        int cursorLimit = 1;
+        int posY;
 
         void moveCursor() {
             switch (cursorPos) {

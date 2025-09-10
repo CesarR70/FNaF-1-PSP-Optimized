@@ -13,6 +13,8 @@ namespace customnight{
         reticlePosition = 0;
         actualReticlePosition = 60;
         editing = "freddy";
+        mustCrash = false;   // NEW
+        crashDelay = 300;    // NEW
     }
 
     namespace render {
@@ -117,13 +119,15 @@ namespace customnight{
                 drawCheckedSprite(sprite::UI::customnight::goldFreddy, 0, 0, 480, 272, 0, 0, 0);
 
                 if (crashDelay <= 0) {
-                    sceKernelExitGame();
+                    // Instead of quitting the application, go back to the menu
+                    actions::returnToMenuFromCrash(); // NEW
                 } else {
                     crashDelay -= 1;
                 }
             }
         }
     }
+    
 
     namespace edit {
         // Define a map for plus and minus operations.
@@ -284,35 +288,37 @@ namespace customnight{
         }
     }
 
-    namespace actions{
+namespace actions {
 
-        void create(){
-            if (animatronic::freddy::totalLevel == 1 && animatronic::bonnie::totalLevel == 9 && animatronic::chika::totalLevel == 8 && animatronic::foxy::totalLevel == 7){
-                if (mustCrash == false){
-                    state::isCustomNight = false;
+    void returnToMenuFromCrash() {
+        mustCrash = false;
+        sprite::UI::customnight::unloadGoldenFreddy();
 
-                    sfx::jumpscare::loadJumpscare2Sound();
+        state::isCustomNight = false;
 
-                    sprite::UI::customnight::unloadIcons();
-                    sprite::UI::customnight::unloadReticle();
-                    sprite::UI::customnight::unloadInstructions();
-                    sprite::UI::customnight::unloadTitle();
-                    sprite::UI::customnight::unloadArrows();
-                    sprite::UI::customnight::unloadText();
-                    sprite::UI::customnight::unloadNames();
-                    sprite::UI::customnight::unloadActions();
+        image::menu::loadMenuBackground();
+        image::menu::loadLogo();
+        image::menu::loadCopyright();
+        image::menu::loadTextAndCursor();
+        sprite::menu::loadStar();
 
-                    sfx::jumpscare::playJumpscare2Sound();
+        menu::menuCursor::moveCursor();
 
-                    state::isCustomNight = true;
+        music::menu::loadMenuMusic();
+        music::menu::playMenuMusic();
 
-                    mustCrash = true;
-                }
-            }
-            else{
-                save::whichNight = 7;
+        state::isMenu = true;
+
+        crashDelay = 300;
+    }
+
+    void create(){
+        if (animatronic::freddy::totalLevel == 1 && animatronic::bonnie::totalLevel == 9 && animatronic::chika::totalLevel == 8 && animatronic::foxy::totalLevel == 7){
+            if (mustCrash == false){
                 state::isCustomNight = false;
-                
+
+                sfx::jumpscare::loadJumpscare2Sound();
+
                 sprite::UI::customnight::unloadIcons();
                 sprite::UI::customnight::unloadReticle();
                 sprite::UI::customnight::unloadInstructions();
@@ -321,42 +327,63 @@ namespace customnight{
                 sprite::UI::customnight::unloadText();
                 sprite::UI::customnight::unloadNames();
                 sprite::UI::customnight::unloadActions();
-                sprite::UI::customnight::unloadGoldenFreddy();
 
-                sprite::nightinfo::loadNightInfoSprite();
-                state::isNightinfo = true;
+                sfx::jumpscare::playJumpscare2Sound();
+
+                state::isCustomNight = true;
+
+                mustCrash = true;
             }
         }
-        void exit(){
-            if (mustCrash == false){
-                if (save::whichNight > 5){
-                    save::readData();
-                }
-                state::isCustomNight = false;
+        else{
+            save::whichNight = 7;
+            state::isCustomNight = false;
 
-                sprite::UI::customnight::unloadIcons();
-                sprite::UI::customnight::unloadReticle();
-                sprite::UI::customnight::unloadInstructions();
-                sprite::UI::customnight::unloadTitle();
-                sprite::UI::customnight::unloadArrows();
-                sprite::UI::customnight::unloadText();
-                sprite::UI::customnight::unloadNames();
-                sprite::UI::customnight::unloadActions();
-                sprite::UI::customnight::unloadGoldenFreddy();
+            sprite::UI::customnight::unloadIcons();
+            sprite::UI::customnight::unloadReticle();
+            sprite::UI::customnight::unloadInstructions();
+            sprite::UI::customnight::unloadTitle();
+            sprite::UI::customnight::unloadArrows();
+            sprite::UI::customnight::unloadText();
+            sprite::UI::customnight::unloadNames();
+            sprite::UI::customnight::unloadActions();
+            sprite::UI::customnight::unloadGoldenFreddy();
 
-                image::menu::loadMenuBackground();
-                image::menu::loadLogo();
-                image::menu::loadCopyright();
-                image::menu::loadTextAndCursor();
-                sprite::menu::loadStar();
-
-                menu::menuCursor::moveCursor();
-
-                music::menu::loadMenuMusic();
-                music::menu::playMenuMusic();
-
-                state::isMenu = true;
-            }
+            sprite::nightinfo::loadNightInfoSprite();
+            state::isNightinfo = true;
         }
     }
-}
+
+    void exit(){
+        if (mustCrash == false){
+            if (save::whichNight > 5){
+                save::readData();
+            }
+            state::isCustomNight = false;
+
+            sprite::UI::customnight::unloadIcons();
+            sprite::UI::customnight::unloadReticle();
+            sprite::UI::customnight::unloadInstructions();
+            sprite::UI::customnight::unloadTitle();
+            sprite::UI::customnight::unloadArrows();
+            sprite::UI::customnight::unloadText();
+            sprite::UI::customnight::unloadNames();
+            sprite::UI::customnight::unloadActions();
+            sprite::UI::customnight::unloadGoldenFreddy();
+
+            image::menu::loadMenuBackground();
+            image::menu::loadLogo();
+            image::menu::loadCopyright();
+            image::menu::loadTextAndCursor();
+            sprite::menu::loadStar();
+
+            menu::menuCursor::moveCursor();
+
+            music::menu::loadMenuMusic();
+            music::menu::playMenuMusic();
+
+            state::isMenu = true;
+        }
+    }
+ }
+} // namespace actions

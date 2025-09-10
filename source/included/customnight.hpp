@@ -46,5 +46,6 @@ namespace customnight{
     namespace actions{
         void create();
         void exit();
+        void returnToMenuFromCrash(); // NEW
     }
 }

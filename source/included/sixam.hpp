@@ -12,6 +12,9 @@
 
 namespace sixam{
 
+    // Call after guSwapBuffers (deferred transition)
+    void postFrame();
+
     void reset();
 
     namespace saveIt{

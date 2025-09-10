@@ -9,6 +9,9 @@
 
 namespace nightinfo{
 
+// Call after guSwapBuffers (deferred transition)
+    void postFrame();
+
     void reset();
     
     namespace render{

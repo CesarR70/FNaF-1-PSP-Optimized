@@ -1,82 +1,115 @@
 #include "included/jumpscare.hpp"
 
-namespace jumpscare{
+namespace jumpscare {
 
-    //float whichJumpscare;
-    //bool loaded = false;
-    //bool loading = false;
+// Forward declare so reset() can touch it before the variable is defined
+namespace load { extern int waitBeforeLoading; }
 
-    int whichFrame = 0;
-    float timePerFrame = 1.3f;
-    //float replayAmount = 1;
+// Tunables
+constexpr int kFrameCount          = 9;   // frames 0..8
+constexpr int kDefaultFrameDelay   = 3;   // ticks per frame (was 2)
+constexpr int kDefaultHoldFrames   = 15;  // hold on last frame (~0.25s at 60fps)
 
-    //int ThreadIDJ;
-    //int PspThreadStatus = 1;
+int whichFrame    = 0;
+int frameDelay    = kDefaultFrameDelay;
+int frameCounter  = kDefaultFrameDelay;
 
-    void reset(){
-        whichFrame = 0;
-        timePerFrame = 1.3f;
+int holdFrames    = kDefaultHoldFrames;
+int holdCounter   = kDefaultHoldFrames;
+
+bool soundPlayed  = false;
+bool transitioning = false;
+
+void reset() {
+    whichFrame   = 0;
+    frameDelay   = kDefaultFrameDelay;
+    frameCounter = frameDelay;
+
+    holdFrames   = kDefaultHoldFrames;
+    holdCounter  = holdFrames;
+
+    soundPlayed  = false;
+    transitioning = false;
+
+    // Reset the deferred loader’s counter
+    load::waitBeforeLoading = 2;
+}
+
+namespace render {
+    void renderJumpscare() {
+        if (!sprite::n_jumpscare::loaded) return;
+
+        int idx = whichFrame;
+        if (idx < 0) idx = 0;
+        if (idx >= kFrameCount) idx = kFrameCount - 1;
+
+        drawSpriteAlpha(
+            0, 0, 480, 272,
+            sprite::n_jumpscare::jumpscareAnim[idx],
+            0, 0, 0
+        );
     }
+}
 
-    namespace render{
-        void renderJumpscare(){
-            if (sprite::n_jumpscare::loaded == true){
-                drawSpriteAlpha(0, 0, 480, 272, sprite::n_jumpscare::jumpscareAnim[whichFrame], 0, 0, 0);
+namespace animate {
+    void initDeathScreen();
+
+    void animateJumpscare() {
+        // Don’t advance until assets are ready
+        if (!sprite::n_jumpscare::loaded) return;
+
+        // Play scream once, early in the sequence
+        if (!soundPlayed && whichFrame >= 1) {
+            sfx::jumpscare::playJumpscareSound();
+            soundPlayed = true;
+        }
+
+        // Advance frames up to the last frame
+        if (whichFrame < (kFrameCount - 1)) {
+            if (--frameCounter <= 0) {
+                ++whichFrame;
+                frameCounter = frameDelay;
             }
+            return;
+        }
+
+        // On last frame: hold for a while
+        if (holdCounter > 0) {
+            --holdCounter;
+            return;
+        }
+
+        // Transition once
+        if (!transitioning) {
+            transitioning = true;
+            initDeathScreen();
         }
     }
 
-    namespace animate{
-        void animateJumpscare(){
+    void initDeathScreen() {
+        state::isJumpscare = false;
 
-            std::cout << "scaring the crap outta u (well maybe idk)" << std::endl;
+        sprite::n_jumpscare::unloadJumpscare();
+        sfx::jumpscare::unloadJumpscareSound();
 
-            if (timePerFrame <= 0){
-                if (whichFrame == 1){
-                    sfx::jumpscare::playJumpscareSound();
-                }
+        sfx::jumpscare::loadDeadSound();
+        sfx::jumpscare::playDeadSound();
 
-                if (whichFrame < 8){
-                    whichFrame += 1;
-                }
-                else if (whichFrame >= 8){
-                    initDeathScreen();
-                    whichFrame = 0;
-                }
-
-                timePerFrame = 1.3f;
-            }
-            else{
-                timePerFrame -= 1;
-            }
-        }
-
-        void initDeathScreen(){
-            state::isJumpscare = false;
-
-            sprite::n_jumpscare::unloadJumpscare();
-            sfx::jumpscare::unloadJumpscareSound();
-
-            sfx::jumpscare::loadDeadSound();
-            sfx::jumpscare::playDeadSound();
-
-            state::isDead = true;
-        }
+        state::isDead = true;
     }
+}
 
-    namespace load{
-        float waitBeforeLoading = 2; //in frames
+namespace load {
+    int waitBeforeLoading = 2; // in frames
 
-        void loadWithDelay(){
-            if (waitBeforeLoading <= 0 && sprite::n_jumpscare::loaded == false){
+    void loadWithDelay() {
+        if (!sprite::n_jumpscare::loaded) {
+            if (--waitBeforeLoading <= 0) {
                 sprite::n_jumpscare::loadJumpscare();
                 waitBeforeLoading = 2;
             }
-            else if (waitBeforeLoading > 0 && sprite::n_jumpscare::loaded == false){
-                waitBeforeLoading -= 1;
-            }
         }
     }
-
-    
 }
+
+} // namespace jumpscare

@@ -10,7 +10,7 @@ namespace office{
     extern std::string buttonState;
     extern std::string doorButtonState;
 
-    extern float usageCountdown;
+    extern int usageCountdown;
     extern bool leftEdge;
     extern bool rightEdge;
 

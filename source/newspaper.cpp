@@ -2,7 +2,7 @@
 
 namespace newspaper{
 
-    float countdown = 400;
+    int countdown = 400;
     bool deactivated = false;
 
     void reset(){

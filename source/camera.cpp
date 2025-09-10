@@ -1,372 +1,257 @@
 #include "included/camera.hpp"
 
-namespace camera{
+namespace camera {
 
-    int whichCamera;
-    //int whichCameraUsing;
-    bool isUsing = false;
+static constexpr int kCamCount = 11;
+static constexpr int kFlipFrameCount = 4;
+static constexpr int kStaticFrames = 4;
 
-    bool opening = false;
-    bool closing = false;
+static const int kButtonPosX[kCamCount] = { 353,348,333,352,352,323,395,395,307,435,440 };
+static const int kButtonPosY[kCamCount] = { 115,140,172,215,232,210,215,232,150,202,150 };
 
-    int whichFrame;
-    float waitFrames = 1;
-    float delay = 3;
+static const int kReticlePosX[kCamCount] = { 353,348,333,352,352,323,395,395,307,435,440 };
+static const int kReticlePosY[kCamCount] = { 115,140,172,215,232,210,215,232,150,202,150 };
 
-    float reticleX = 353;
-    float reticleY = 115;
-    
-    std::string buttonState = "up";
+int whichCamera;
+bool isUsing = false;
 
-    void reset(){
-        whichCamera = 0;
-        
-        isUsing = false;
-        animatronic::usingCams = false;
-        opening = false;
-        closing = false;
+bool opening = false;
+bool closing = false;
 
-        whichFrame = 0;
-        waitFrames = 1;
-        delay = 3;
+int whichFrame;
+int waitFrames = 1;
+int delay = 3;
 
-        reticleX = 353;
-        reticleY = 115;
+int reticleX = 353;
+int reticleY = 115;
 
-        buttonState = "up";
-    }
+std::string buttonState = "up";
 
-    namespace render {
-        void renderCamFlip() {
-            if (closing || opening) {
-                if (sprite::UI::office::camFlip[whichFrame]) {
-                    drawSpriteAlpha(0, 0, 480, 272, sprite::UI::office::camFlip[whichFrame], 0, 0, 0);
-                } else {
-                    std::cerr << "Error: camFlip frame is null at index " << whichFrame << std::endl;
-                }
-            }
-        }
+static inline int clamp(int v, int lo, int hi) {
+    return (v < lo) ? lo : (v > hi ? hi : v);
+}
 
-        void renderCamera() {
-            if (isUsing && !closing) {
-                if (sprite::UI::office::cams[whichCamera]) {
-                    drawSpriteAlpha(0, 0, 480, 272, sprite::UI::office::cams[whichCamera], 0, 0, 0);
-                } else {
-                    std::cerr << "Error: Camera frame is null for camera " << whichCamera << std::endl;
-                }
-            }
-        }
+void reset() {
+    whichCamera = 0;
 
-        void renderUi() {
-            if (isUsing && !closing) {
-                // Render camera border
-                if (sprite::UI::office::camBorder) {
-                    drawSpriteAlpha(0, 0, 480, 272, sprite::UI::office::camBorder, 0, 0, 0);
-                } else {
-                    std::cerr << "Error: camBorder is null." << std::endl;
-                }
+    isUsing = false;
+    animatronic::usingCams = false;
+    opening = false;
+    closing = false;
 
-                // Render map
-                if (sprite::UI::office::camMap) {
-                    drawSpriteAlpha(0, 0, 160, 160, sprite::UI::office::camMap, 310, 108, 0);
-                } else {
-                    std::cerr << "Error: camMap is null." << std::endl;
-                }
+    whichFrame = 0;
+    waitFrames = 1;
+    delay = 3;
 
-                // Render recording icon
-                if (sprite::UI::office::recording) {
-                    drawSpriteAlpha(0, 0, 20, 20, sprite::UI::office::recording, 20, 20, 0);
-                } else {
-                    std::cerr << "Error: recording icon is null." << std::endl;
-                }
+    reticleX = 353;
+    reticleY = 115;
 
-                // Render camera name
-                if (sprite::UI::office::camNames[whichCamera]) {
-                    drawSpriteAlpha(0, 0, 121, 13, sprite::UI::office::camNames[whichCamera], 310, 95, 0);
-                } else {
-                    std::cerr << "Error: camNames is null for camera " << whichCamera << std::endl;
-                }
+    buttonState = "up";
+}
 
-                // Render camera buttons
-                for (size_t i = 0; i < 11; ++i) {
-                    if (sprite::UI::office::camButtons[i]) {
-                        int buttonX, buttonY;
+namespace render {
 
-                        // Map button positions
-                        switch (i) {
-                            case 0: buttonX = 353; buttonY = 115; break;
-                            case 1: buttonX = 348; buttonY = 140; break;
-                            case 2: buttonX = 333; buttonY = 172; break;
-                            case 3: buttonX = 352; buttonY = 215; break;
-                            case 4: buttonX = 352; buttonY = 232; break;
-                            case 5: buttonX = 323; buttonY = 210; break;
-                            case 6: buttonX = 395; buttonY = 215; break;
-                            case 7: buttonX = 395; buttonY = 232; break;
-                            case 8: buttonX = 307; buttonY = 150; break;
-                            case 9: buttonX = 435; buttonY = 202; break;
-                            case 10: buttonX = 440; buttonY = 150; break;
-                            default: continue;
-                        }
+    void renderCamFlip() {
+        if (!(closing || opening)) return;
 
-                        drawSpriteAlpha(0, 0, 20, 15, sprite::UI::office::camButtons[i], buttonX, buttonY, 0);
-                    } else {
-                        std::cerr << "Error: camButton at index " << i << " is null." << std::endl;
-                    }
-                }
-
-                // Render reticle
-                if (sprite::UI::office::reticle) {
-                    drawSpriteAlpha(0, 0, 20, 15, sprite::UI::office::reticle, reticleX, reticleY, 0);
-                } else {
-                    std::cerr << "Error: reticle is null." << std::endl;
-                }
-            }
+        int idx = clamp(whichFrame, 0, kFlipFrameCount - 1);
+        auto* tex = sprite::UI::office::camFlip[idx];
+        if (tex) {
+            drawSpriteAlpha(0, 0, 480, 272, tex, 0, 0, 0);
         }
     }
 
-    namespace n_static{
-        int whichFrameStatic = 0;
-        float waitFrames2 = 5;
+    void renderCamera() {
+        // Extra guards so we don’t try to draw while cams are being (re)loaded
+        if (!isUsing || closing) return;
+        if (!sprite::UI::office::loaded || !animatronic::reloaded) return;
 
-        void renderStatic(){
-            if (isUsing == true && closing == false){
-                drawSpriteAlpha(0, 0, 480, 272, image::global::n_static::staticFrames[whichFrameStatic], 0, 0, 0);
-            }
-        }
-        void animateStatic(){
-            if (waitFrames2 <= 0){
-                whichFrameStatic += 1;
-
-                if (whichFrameStatic > 3){
-                    whichFrameStatic = 0;
-                }
-
-                waitFrames2 = 3;
-            }
-            else{
-                waitFrames2 -= 1;
-            }
+        int cam = clamp(whichCamera, 0, kCamCount - 1);
+        auto* tex = sprite::UI::office::cams[cam];
+        if (tex) {
+            drawSpriteAlpha(0, 0, 480, 272, tex, 0, 0, 0);
         }
     }
 
-    namespace animation{
+    void renderUi() {
+        if (!isUsing || closing) return;
 
-        void camera(){
-            if (opening == false && isUsing == false){
-                opening = true;
-                sfx::office::playCamOpen();
-            }
-            else if (closing == false && isUsing == true){
-                closing = true;
-                sfx::office::playCamClose();
-            }
+        if (sprite::UI::office::camBorder) {
+            drawSpriteAlpha(0, 0, 480, 272, sprite::UI::office::camBorder, 0, 0, 0);
+        }
+        if (sprite::UI::office::camMap) {
+            drawSpriteAlpha(0, 0, 160, 160, sprite::UI::office::camMap, 310, 108, 0);
+        }
+        if (sprite::UI::office::recording) {
+            drawSpriteAlpha(0, 0, 20, 20, sprite::UI::office::recording, 20, 20, 0);
         }
 
-        void openCams(){
-            if (waitFrames <= 0){
-                if (whichFrame < 3){
-                    whichFrame += 1;
+        int cam = clamp(whichCamera, 0, kCamCount - 1);
+        auto* name = sprite::UI::office::camNames[cam];
+        if (name) {
+            drawSpriteAlpha(0, 0, 121, 13, name, 310, 95, 0);
+        }
 
-                    waitFrames = 1;
-                }
-                else{
+        for (int i = 0; i < kCamCount; ++i) {
+            auto* tex = sprite::UI::office::camButtons[i];
+            if (!tex) continue;
+            drawSpriteAlpha(0, 0, 20, 15, tex, kButtonPosX[i], kButtonPosY[i], 0);
+        }
+
+        if (sprite::UI::office::reticle) {
+            drawSpriteAlpha(0, 0, 20, 15, sprite::UI::office::reticle,
+                            kReticlePosX[cam], kReticlePosY[cam], 0);
+        }
+    }
+}
+
+namespace n_static {
+    int whichFrameStatic = 0;
+    int waitFrames2 = 5;
+
+    void renderStatic() {
+        if (!isUsing || closing) return;
+        int idx = clamp(whichFrameStatic, 0, kStaticFrames - 1);
+        auto* tex = image::global::n_static::staticFrames[idx];
+        if (tex) {
+            drawSpriteAlpha(0, 0, 480, 272, tex, 0, 0, 0);
+        }
+    }
+
+    void animateStatic() {
+        if (waitFrames2 <= 0) {
+            whichFrameStatic++;
+            if (whichFrameStatic >= kStaticFrames) whichFrameStatic = 0;
+            waitFrames2 = 3;
+        } else {
+            waitFrames2 -= 1;
+        }
+    }
+}
+
+namespace animation {
+
+    void camera() {
+        if (!opening && !isUsing) {
+            opening = true;
+            sfx::office::playCamOpen();
+        }
+        else if (!closing && isUsing) {
+            closing = true;
+            sfx::office::playCamClose();
+        }
+    }
+
+    void openCams() {
+        if (waitFrames <= 0) {
+            if (whichFrame < (kFlipFrameCount - 1)) {
+                whichFrame += 1;
+                waitFrames = 1;
+            } else {
+                // End of flip: only enter cam view once textures are ready
+                if (sprite::UI::office::loaded && animatronic::reloaded) {
                     opening = false;
                     isUsing = true;
                     animatronic::usingCams = true;
+                } else {
+                    // Hold the last flip frame until assets are ready
+                    waitFrames = 1;
                 }
             }
-            else{
+        } else {
+            waitFrames -= 1;
+        }
+    }
+
+    void closeCams() {
+        if (delay <= 0) {
+            if (waitFrames <= 0) {
+                if (whichFrame > 0) {
+                    whichFrame -= 1;
+                    waitFrames = 1;
+                } else {
+                    closing = false;
+                    isUsing = false;
+                    animatronic::usingCams = false;
+                    delay = 2;
+                }
+            } else {
                 waitFrames -= 1;
             }
-        }
-        void closeCams(){
-            if (delay <= 0){
-                if (waitFrames <= 0){
-                    if (whichFrame > 0){
-                        whichFrame -= 1;
-
-                        waitFrames = 1;
-                    }
-                    else{
-                        closing = false;
-                        isUsing = false;
-                        animatronic::usingCams = false;
-                        delay = 2;
-                    }
-                }
-                else{
-                    waitFrames -= 1;
-                }
-            }
-            else{
-                delay -= 1;
-            }
-        }
-
-        
-    }
-
-    namespace system{
-
-        void left() {
-            if (isUsing) {
-                switch (whichCamera) {
-                    case 1:
-                    case 2:
-                        whichCamera = 8;
-                        break;
-                    case 3:
-                    case 4:
-                        whichCamera = 5;
-                        break;
-                    case 6:
-                    case 7:
-                        whichCamera = 3;
-                        break;
-                    case 9:
-                        whichCamera = 6;
-                        break;
-                    case 10:
-                        whichCamera = 1;
-                        break;
-                }
-
-                sfx::office::playSwitch();
-                setReticle();
-            }
-        }
-        void right() {
-            if (isUsing) {
-                switch (whichCamera) {
-                    case 1:
-                    case 2:
-                        whichCamera = 10;
-                        break;
-                    case 3:
-                    case 4:
-                        whichCamera = 6;
-                        break;
-                    case 6:
-                    case 7:
-                        whichCamera = 9;
-                        break;
-                    case 5:
-                        whichCamera = 3;
-                        break;
-                    case 8:
-                        whichCamera = 1;
-                        break;
-                }
-
-                sfx::office::playSwitch();
-                setReticle();
-            }
-        }
-        void up() {
-            if (isUsing) {
-                switch (whichCamera) {
-                    case 1:
-                        whichCamera = 0;
-                        break;
-                    case 2:
-                        whichCamera = 1;
-                        break;
-                    case 3:
-                        whichCamera = 2;
-                        break;
-                    case 4:
-                        whichCamera = 3;
-                        break;
-                    case 7:
-                        whichCamera = 6;
-                        break;
-                    case 9:
-                        whichCamera = 10;
-                        break;
-                }
-
-                sfx::office::playSwitch();
-                setReticle();
-            }
-        }
-        void down() {
-            if (isUsing) {
-                switch (whichCamera) {
-                    case 0:
-                        whichCamera = 1;
-                        break;
-                    case 1:
-                        whichCamera = 2;
-                        break;
-                    case 2:
-                        whichCamera = 3;
-                        break;
-                    case 3:
-                        whichCamera = 4;
-                        break;
-                    case 6:
-                        whichCamera = 7;
-                        break;
-                    case 10:
-                        whichCamera = 9;
-                        break;
-                }
-
-                sfx::office::playSwitch();
-                setReticle();
-            }
-        }
-
-
-        void setReticle(){
-            switch (whichCamera){
-                case 0:
-                    reticleX = 353;
-                    reticleY = 115;
-                    break;
-                case 1:
-                    reticleX = 348;
-                    reticleY = 140;
-                    break;
-                case 2:
-                    reticleX = 333;
-                    reticleY = 172;
-                    break;
-                case 3:
-                    reticleX = 352;
-                    reticleY = 215;
-                    break;
-                case 4:
-                    reticleX = 352;
-                    reticleY = 232;
-                    break;
-                case 5:
-                    reticleX = 323;
-                    reticleY = 210;
-                    break;
-                case 6:
-                    reticleX = 395;
-                    reticleY = 215;
-                    break;
-                case 7:
-                    reticleX = 395;
-                    reticleY = 232;
-                    break;
-                case 8:
-                    reticleX = 307;
-                    reticleY = 150;
-                    break;
-                case 9:
-                    reticleX = 435;
-                    reticleY = 202;
-                    break;
-                case 10:
-                    reticleX = 440;
-                    reticleY = 150;
-                    break;
-                default:
-                    break;
-            }
+        } else {
+            delay -= 1;
         }
     }
+}
+
+namespace system {
+
+    void setReticle() {
+        int cam = clamp(whichCamera, 0, kCamCount - 1);
+        reticleX = kReticlePosX[cam];
+        reticleY = kReticlePosY[cam];
+    }
+
+    void left() {
+        if (!isUsing) return;
+        switch (whichCamera) {
+            case 1: case 2: whichCamera = 8;  break;
+            case 3: case 4: whichCamera = 5;  break;
+            case 6: case 7: whichCamera = 3;  break;
+            case 9:         whichCamera = 6;  break;
+            case 10:        whichCamera = 1;  break;
+            default: break;
+        }
+        whichCamera = clamp(whichCamera, 0, kCamCount - 1);
+        sfx::office::playSwitch();
+        setReticle();
+    }
+
+    void right() {
+        if (!isUsing) return;
+        switch (whichCamera) {
+            case 1: case 2: whichCamera = 10; break;
+            case 3: case 4: whichCamera = 6;  break;
+            case 6: case 7: whichCamera = 9;  break;
+            case 5:         whichCamera = 3;  break;
+            case 8:         whichCamera = 1;  break;
+            default: break;
+        }
+        whichCamera = clamp(whichCamera, 0, kCamCount - 1);
+        sfx::office::playSwitch();
+        setReticle();
+    }
+
+    void up() {
+        if (!isUsing) return;
+        switch (whichCamera) {
+            case 1: whichCamera = 0;  break;
+            case 2: whichCamera = 1;  break;
+            case 3: whichCamera = 2;  break;
+            case 4: whichCamera = 3;  break;
+            case 7: whichCamera = 6;  break;
+            case 9: whichCamera = 10; break;
+            default: break;
+        }
+        whichCamera = clamp(whichCamera, 0, kCamCount - 1);
+        sfx::office::playSwitch();
+        setReticle();
+    }
+
+    void down() {
+        if (!isUsing) return;
+        switch (whichCamera) {
+            case 0: whichCamera = 1; break;
+            case 1: whichCamera = 2; break;
+            case 2: whichCamera = 3; break;
+            case 3: whichCamera = 4; break;
+            case 6: whichCamera = 7; break;
+            case 10:whichCamera = 9; break;
+            default: break;
+        }
+        whichCamera = clamp(whichCamera, 0, kCamCount - 1);
+        sfx::office::playSwitch();
+        setReticle();
+    }
+  }   
 }

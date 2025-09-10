@@ -3,7 +3,7 @@
 namespace timegame{
 
     int gtime = 0;
-    float framesPerUpdate = 5100; //5100 frames = 85 seconds
+    int framesPerUpdate = 5100; //5100 frames = 85 seconds
 
     void reset(){
         gtime = 0;

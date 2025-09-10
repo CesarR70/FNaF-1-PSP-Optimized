@@ -5,7 +5,7 @@ namespace save{
     int whichNight = 1;
     int mode1Unlocked = 0;
     int mode2Unlocked = 0;
-    float starAmount = 0;
+    int starAmount = 0;
 
     bool loadedData = false;
 

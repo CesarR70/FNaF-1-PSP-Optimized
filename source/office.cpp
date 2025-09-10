@@ -1,15 +1,14 @@
 #include "included/office.hpp"
 
-namespace office{
+namespace office {
 
-    int wichOfficeFrame = 0; //3 = bonnie, 4 = chica at door
-    float xPos[6];
-    float speed = 1;
-    float speedMultiplier = 5;
+    int wichOfficeFrame = 0; // 3 = bonnie, 4 = chica at door
+    int xPos[6];
+    int speed = 1;
+    int speedMultiplier = 5;
     std::string dir = "none";
 
-
-    float usageCountdown = 10;
+    int usageCountdown = 10;
     bool leftEdge = false;
     bool rightEdge = true;
 
@@ -30,11 +29,28 @@ namespace office{
     int leftButtonFrame = 0;
     int rightButtonFrame = 0;
 
-    float doorAnimTime = 1;
+    // Original shared timer (kept for compatibility, no longer used)
+    int doorAnimTime = 1;
+
+    // New: independent door timers to allow both doors to animate smoothly
+    int leftDoorTimer = 0;
+    int rightDoorTimer = 0;
+
     int leftDoorFrame = 0;
     int rightDoorFrame = 0;
 
-    void reset(){
+    // New: prevent scare spam while holding light
+    bool scareLeftPlayed = false;
+    bool scareRightPlayed = false;
+
+    static inline char firstCharLower(const std::string& s, char def = 'n') {
+        if (s.empty()) return def;
+        char c = s[0];
+        if (c >= 'A' && c <= 'Z') c = char(c + ('a' - 'A'));
+        return c;
+    }
+
+    void reset() {
         wichOfficeFrame = 0;
 
         main::setX();
@@ -56,20 +72,28 @@ namespace office{
         rightButtonFrame = 0;
 
         doorAnimTime = 1;
+        leftDoorTimer = 0;
+        rightDoorTimer = 0;
         leftDoorFrame = 0;
         rightDoorFrame = 0;
+
+        scareLeftPlayed = false;
+        scareRightPlayed = false;
+
+        leftEdge = false;
+        rightEdge = true;
     }
 
-    namespace render{
-        void renderOffice(){
+    namespace render {
+        void renderOffice() {
             drawSpriteAlpha(0, 0, 480, 272, officeImage::office1Sprites[wichOfficeFrame], xPos[0], 0, 0);
             drawSpriteAlpha(0, 0, 124, 272, officeImage::office2Sprites[wichOfficeFrame], xPos[1], 0, 0);
         }
-        void renderButtons(){
+        void renderButtons() {
             drawSpriteAlpha(0, 0, 50, 90, sprite::office::buttonsLeft[leftButtonFrame], xPos[2], 105, 0);
             drawSpriteAlpha(0, 0, 50, 90, sprite::office::buttonsRight[rightButtonFrame], xPos[3], 100, 0);
         }
-        void renderDoors(){
+        void renderDoors() {
             drawSpriteAlpha(0, 0, 84, 272, sprite::office::doorLeft[leftDoorFrame], xPos[4], 0, 0);
             drawSpriteAlpha(0, 0, 84, 272, sprite::office::doorRight[rightDoorFrame], xPos[5], 0, 0);
         }
@@ -82,7 +106,6 @@ namespace office{
         }
     }
 
-
     namespace main {
         void setX() {
             xPos[0] = 0;
@@ -94,56 +117,82 @@ namespace office{
         }
 
         void moveOffice() {
-            const float delta = speed * speedMultiplier;
+            // Use first char checks to avoid heavy string comparisons
+            const char d = firstCharLower(dir, 'n'); // 'l' 'r' 'n'
+            const int step = speed * speedMultiplier;
 
-            if (dir == "left" && xPos[1] > 364) {
-                for (int i = 0; i < 6; ++i) {
-                    xPos[i] -= delta;
-                }
-                rightEdge = true;
-            } else if (dir == "right" && xPos[0] < 0) {
-                for (int i = 0; i < 6; ++i) {
-                    xPos[i] += delta;
-                }
+            if (d == 'l' && xPos[1] > 364) {
+                for (int i = 0; i < 6; ++i) xPos[i] -= step;
+            } else if (d == 'r' && xPos[0] < 0) {
+                for (int i = 0; i < 6; ++i) xPos[i] += step;
             }
 
+            // Snap/clamp to edges so we never "miss" the exact value
+            int shift = 0;
+            if (xPos[0] < -120) {
+                shift = -120 - xPos[0];
+            } else if (xPos[0] > 0) {
+                shift = 0 - xPos[0];
+            }
+            if (shift) {
+                for (int i = 0; i < 6; ++i) xPos[i] += shift;
+            }
+
+            // Update edges based on clamped position
             if (xPos[0] == -120) {
                 leftEdge = true;
                 rightEdge = false;
             } else if (xPos[0] == 0) {
                 rightEdge = true;
                 leftEdge = false;
-            } else if (xPos[0] < 0 && xPos[0] > -120) {
+            } else {
                 leftEdge = false;
                 rightEdge = false;
             }
         }
     }
 
-
     namespace lights {
         void lights() {
-            if (buttonState == "down") {
-                if (leftEdge) { // Light logic for the right side (inverted for reasons)
+            const char btn = firstCharLower(buttonState, 'u'); // 'd' or 'u'
+
+            if (btn == 'd') {
+                // Right side (triggered when at left edge)
+                if (leftEdge) {
                     wichOfficeFrame = (animatronic::chika::position == 6) ? 4 : 1;
-                    rightOn = true;
+                    if (!rightOn) {
+                        rightOn = true;
+                        sfx::office::playLightOn(); // transition ON
+                    }
+                    // Scare once while light is held, if applicable
                     if (animatronic::chika::position == 6 && !rightClosed) {
-                        sfx::office::playScare();
+                        if (!scareRightPlayed) {
+                            sfx::office::playScare();
+                            scareRightPlayed = true;
+                        }
+                    } else {
+                        scareRightPlayed = false;
                     }
-                    sfx::office::playLightOn();
                 }
 
-                if (rightEdge) { // Light logic for the left side (inverted for reasons)
+                // Left side (triggered when at right edge)
+                if (rightEdge) {
                     wichOfficeFrame = (animatronic::bonnie::position == 6) ? 3 : 2;
-                    leftOn = true;
-                    if (animatronic::bonnie::position == 6 && !leftClosed) {
-                        sfx::office::playScare();
+                    if (!leftOn) {
+                        leftOn = true;
+                        sfx::office::playLightOn(); // transition ON
                     }
-                    sfx::office::playLightOn();
+                    if (animatronic::bonnie::position == 6 && !leftClosed) {
+                        if (!scareLeftPlayed) {
+                            sfx::office::playScare();
+                            scareLeftPlayed = true;
+                        }
+                    } else {
+                        scareLeftPlayed = false;
+                    }
                 }
-            } else if (buttonState == "up") {
-                wichOfficeFrame = 0;
-
+            } else {
+                // Button up: lights off, reset frame and scare guards
                 if (leftOn) {
                     leftOn = false;
                     sfx::office::playLightOff();
@@ -152,102 +201,93 @@ namespace office{
                     rightOn = false;
                     sfx::office::playLightOff();
                 }
+                wichOfficeFrame = 0;
+                scareLeftPlayed = false;
+                scareRightPlayed = false;
             }
         }
     }
 
+    namespace doors {
 
-
-    namespace doors{
-
-        void doors(){
-            if (rightEdge){
-                if (closingLeft == false && leftClosed == false){
+        void doors() {
+            // Toggle left door when at right edge
+            if (rightEdge) {
+                if (!closingLeft && !leftClosed) {
                     closingLeft = true;
+                    openingLeft = false;
+                    leftDoorTimer = 1;
                     sfx::office::playDoor();
-                }
-                else if (openingLeft == false && leftClosed == true){
+                } else if (!openingLeft && leftClosed) {
                     openingLeft = true;
+                    closingLeft = false;
+                    leftDoorTimer = 1;
                     sfx::office::playDoor();
                 }
             }
-            else if (leftEdge){
-                if (closingRight == false && rightClosed == false){
+            // Toggle right door when at left edge
+            else if (leftEdge) {
+                if (!closingRight && !rightClosed) {
                     closingRight = true;
+                    openingRight = false;
+                    rightDoorTimer = 1;
                     sfx::office::playDoor();
-                }
-                else if (openingRight == false && rightClosed == true){
+                } else if (!openingRight && rightClosed) {
                     openingRight = true;
+                    closingRight = false;
+                    rightDoorTimer = 1;
                     sfx::office::playDoor();
                 }
             }
         }
 
-
-        void closeLeft(){
-            if (doorAnimTime <= 0){
-                if (leftDoorFrame < 6){
-                    leftDoorFrame += 1;
-                    doorAnimTime = 1;
-                }
-                else{
+        void closeLeft() {
+            if (--leftDoorTimer <= 0) {
+                if (leftDoorFrame < 6) {
+                    ++leftDoorFrame;
+                    leftDoorTimer = 1;
+                } else {
                     closingLeft = false;
                     leftClosed = true;
                     animatronic::leftClosed = true;
                 }
             }
-            else{
-                doorAnimTime -= 1;
-            }
         }
-        void openLeft(){
-            if (doorAnimTime <= 0){
-                if (leftDoorFrame > 0){
-                    leftDoorFrame -= 1;
-                    doorAnimTime = 1;
-                }
-                else{
+        void openLeft() {
+            if (--leftDoorTimer <= 0) {
+                if (leftDoorFrame > 0) {
+                    --leftDoorFrame;
+                    leftDoorTimer = 1;
+                } else {
                     openingLeft = false;
                     leftClosed = false;
                     animatronic::leftClosed = false;
                 }
             }
-            else{
-                doorAnimTime -= 1;
-            }
         }
 
-
-        void closeRight(){
-            if (doorAnimTime <= 0){
-                if (rightDoorFrame < 6){
-                    rightDoorFrame += 1;
-                    doorAnimTime = 1;
-                }
-                else{
+        void closeRight() {
+            if (--rightDoorTimer <= 0) {
+                if (rightDoorFrame < 6) {
+                    ++rightDoorFrame;
+                    rightDoorTimer = 1;
+                } else {
                     closingRight = false;
                     rightClosed = true;
                     animatronic::rightClosed = true;
                 }
             }
-            else{
-                doorAnimTime -= 1;
-            }
         }
-        void openRight(){
-            if (doorAnimTime <= 0){
-                if (rightDoorFrame > 0){
-                    rightDoorFrame -= 1;
-                    doorAnimTime = 1;
-                }
-                else{
+        void openRight() {
+            if (--rightDoorTimer <= 0) {
+                if (rightDoorFrame > 0) {
+                    --rightDoorFrame;
+                    rightDoorTimer = 1;
+                } else {
                     openingRight = false;
                     rightClosed = false;
                     animatronic::rightClosed = false;
                 }
-            }
-            else{
-                doorAnimTime -= 1;
             }
         }
     }

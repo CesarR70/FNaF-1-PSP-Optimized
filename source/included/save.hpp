@@ -5,7 +5,7 @@ namespace save{
     extern int whichNight;
     extern int mode1Unlocked;
     extern int mode2Unlocked;
-    extern float starAmount;
+    extern int starAmount;
 
     extern bool loadedData;
 

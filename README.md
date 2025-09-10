@@ -27,6 +27,5 @@ Before building, make sure you have:
    cd FNaF-1-PSP
  2. Make sure your PSP toolchain is set in your PATH.
  3. Run make to build the game:  
-  ```bash
-   make
+make
 

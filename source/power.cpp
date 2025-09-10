@@ -2,7 +2,7 @@
 
 namespace power{
     int usage = 0;
-    float total = 99;
+    int total = 99;
     int drainTime = 600;
 
     int lightUsage = 0;
@@ -39,143 +39,63 @@ namespace power{
         }
     }
 
-    namespace update{
-        void checkDrain(){
-            if (office::leftOn == false && office::rightOn == false){
-                lightUsage = 0;
-            }
-            if (office::leftOn == true || office::rightOn == true){
-                lightUsage = 1;
-            }
-            if (office::leftOn == true && office::rightOn == true){
-                lightUsage = 2;
-            }
+namespace update {
 
-            if (office::leftClosed == false && office::rightClosed == false){
-                doorUsage = 0;
-            }
-            if (office::leftClosed == true || office::rightClosed == true){
-                doorUsage = 1;
-            }
-            if (office::leftClosed == true && office::rightClosed == true){
-                doorUsage = 2;
-            }
+    void checkDrain() {
+        lightUsage = (office::leftOn ? 1 : 0) + (office::rightOn ? 1 : 0);
+        doorUsage  = (office::leftClosed ? 1 : 0) + (office::rightClosed ? 1 : 0);
+        camUsage   = camera::isUsing ? 1 : 0;
 
-            if (camera::isUsing == false){
-                camUsage = 0;
-            }
-            if (camera::isUsing == true){
-                camUsage = 1;
-            }
+        usage = lightUsage + doorUsage + camUsage;
+        usage = (usage > 4) ? 4 : usage;
 
-            usage = lightUsage + doorUsage + camUsage;
-            if (usage > 4){
-                usage = 4;
-            }
-            
+        if (total == 0) {
+            initPowerOut();
+        }
+    }
 
-            if (total == 0){
-                initPowerOut();
-                total = 0;
-            }
-            
+    void drainConstant() {
+        int divisor = 0;
+        switch (usage) {
+            case 1: divisor = 2; break;
+            case 2: divisor = 4; break;
+            case 3: divisor = 6; break;
+            case 4: divisor = 8; break;
         }
 
-        void drainConstant(){
-
-            switch (usage){
-                case 1:
-                    switch (drainTime){
-                        case 600: case 540: case 480: case 420:
-                            drainTime /= 2;
-                            break;
-                    }
-                    break;
-                case 2:
-                    switch (drainTime){
-                        case 600: case 540: case 480: case 420:
-                            drainTime /= 4;
-                            break;
-                    }
-                    break;
-                case 3:
-                    switch (drainTime){
-                        case 600: case 540: case 480: case 420:
-                            drainTime /= 6;
-                            break;
-                    }
-                    break;
-                case 4:
-                    switch (drainTime){
-                        case 600: case 540: case 480: case 420:
-                            drainTime /= 8;
-                            break;
-                    }
-                    break;
-                default:
-                    break;
-            }
-
-            /*if (usage == 1){
-                if (drainTime == 600 || drainTime == 540 || drainTime == 480 || drainTime == 420){
-                    drainTime /= 2;
-                }
-            }
-            else if (usage == 2){
-                if (drainTime == 600 || drainTime == 540 || drainTime == 480 || drainTime == 420){
-                    drainTime /= 4;
-                }
-            }
-            else if (usage == 3){
-                if (drainTime == 600 || drainTime == 540 || drainTime == 480 || drainTime == 420){
-                    drainTime /= 6;
-                }
-            }
-            else if (usage == 4){
-                if (drainTime == 600 || drainTime == 540 || drainTime == 480 || drainTime == 420){
-                    drainTime /= 8;
-                }
-            }*/
-
-            if (drainTime <= 0){
-                total -= 1;
-                ones -= 1;
-
-                if (ones < 0 && tenths > 0){
-                    ones = 9;
-                    tenths -= 1;
-                }
-
-                setDrainTime();
-            }
-            else{
-                drainTime -= 1;
-            }
+        if (divisor && (drainTime == 600 || drainTime == 540 || drainTime == 480 || drainTime == 420)) {
+            drainTime /= divisor;
         }
 
-        void setDrainTime(){
-            if (save::whichNight == 1){
-                drainTime = 600;
+        if (drainTime <= 0) {
+            total -= 1;
+            ones -= 1;
+
+            if (ones < 0 && tenths > 0) {
+                ones = 9;
+                tenths -= 1;
             }
-            else if (save::whichNight == 2){
-                drainTime = 540;
-            }
-            else if (save::whichNight == 3){
-                drainTime = 540;
-            }
-            else if (save::whichNight == 4){
-                drainTime = 480;
-            }
-            else if (save::whichNight == 5){
-                drainTime = 420;
-            }
-            else if (save::whichNight == 6){
-                drainTime = 420;
-            }
-            else if (save::whichNight == 7){
-                drainTime = 420;
-            }
+
+            setDrainTime();
+        } else {
+            drainTime -= 1;
         }
+    }
+
+    void setDrainTime() {
+        static const int drainTimes[8] = {
+            600, // unused index 0
+            600, // night 1
+            540, // night 2
+            540, // night 3
+            480, // night 4
+            420, // night 5
+            420, // night 6
+            420  // night 7
+        };
+        drainTime = drainTimes[save::whichNight];
+    }
+
 
         void initPowerOut(){
             state::isOffice = false;

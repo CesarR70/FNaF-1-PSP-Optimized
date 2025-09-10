@@ -1,155 +1,165 @@
 #include "included/image2.hpp"
+#include <string>
 
-namespace image{
-    namespace menu{
-        Image *menuBackground[4];
-        Image *selectionText[4];
-        Image *selectionCursor;
+// Helpers: safe free + array free
+static inline void freeImageSafe(Image*& img) {
+    if (img) {
+        freeImage(img);
+        img = nullptr;
+    }
+}
 
-        Image *logo;
-        Image *copyright;
+template <size_t N>
+static inline void freeImageArray(Image* (&arr)[N]) {
+    for (size_t i = 0; i < N; ++i) {
+        if (arr[i]) {
+            freeImage(arr[i]);
+            arr[i] = nullptr;
+        }
+    }
+}
 
-        void loadMenuBackground(){
+namespace image {
+    namespace menu {
+        Image* menuBackground[4] = {nullptr, nullptr, nullptr, nullptr};
+        Image* selectionText[4]  = {nullptr, nullptr, nullptr, nullptr};
+        Image* selectionCursor   = nullptr;
+
+        Image* logo = nullptr;
+        Image* copyright = nullptr;
+
+        void loadMenuBackground() {
             menuBackground[0] = loadPng("romfs/gfx/menu/frame_1.png");
             menuBackground[1] = loadPng("romfs/gfx/menu/frame_2.png");
             menuBackground[2] = loadPng("romfs/gfx/menu/frame_3.png");
             menuBackground[3] = loadPng("romfs/gfx/menu/frame_4.png");
         }
-        void unloadMenuBackground(){
-            freeImage(menuBackground[0]);
-            freeImage(menuBackground[1]);
-            freeImage(menuBackground[2]);
-            freeImage(menuBackground[3]);
+        void unloadMenuBackground() {
+            freeImageArray(menuBackground);
         }
 
-        void loadLogo(){
+        void loadLogo() {
             logo = loadPng("romfs/gfx/menu/logo.png");
         }
-        void unloadLogo(){
-            freeImage(logo);
+        void unloadLogo() {
+            freeImageSafe(logo);
         }
 
-        void loadCopyright(){
+        void loadCopyright() {
             copyright = loadPng("romfs/gfx/menu/copyright.png");
         }
-        void unloadCopyright(){
-            freeImage(copyright);
+        void unloadCopyright() {
+            freeImageSafe(copyright);
         }
 
-        void loadTextAndCursor(){
+        void loadTextAndCursor() {
             selectionText[0] = loadPng("romfs/gfx/menu/selection/continue.png");
             selectionText[1] = loadPng("romfs/gfx/menu/selection/newGame.png");
             selectionText[2] = loadPng("romfs/gfx/menu/selection/6thNight.png");
             selectionText[3] = loadPng("romfs/gfx/menu/selection/customNight.png");
-
-            selectionCursor = loadPng("romfs/gfx/menu/selection/arrow.png");
+            selectionCursor  = loadPng("romfs/gfx/menu/selection/arrow.png");
         }
-        void unloadTextAndCursor(){
-            freeImage(selectionText[0]);
-            freeImage(selectionText[1]);
-            freeImage(selectionText[2]);
-            freeImage(selectionText[3]);
-
-            freeImage(selectionCursor);
-            
+        void unloadTextAndCursor() {
+            freeImageArray(selectionText);
+            freeImageSafe(selectionCursor);
         }
     }
 
-    namespace global{
-        namespace n_static{
-            Image *staticFrames[4];
-        
-            void loadStatic(){
+    namespace global {
+        namespace n_static {
+            Image* staticFrames[4] = {nullptr, nullptr, nullptr, nullptr};
+
+            void loadStatic() {
                 staticFrames[0] = loadPng("romfs/gfx/menu/static/image1_480x272.png");
                 staticFrames[1] = loadPng("romfs/gfx/menu/static/image2_480x272.png");
                 staticFrames[2] = loadPng("romfs/gfx/menu/static/image3_480x272.png");
                 staticFrames[3] = loadPng("romfs/gfx/menu/static/image4_480x272.png");
             }
-            void unloadStatic(){
-                freeImage(staticFrames[0]);
-                freeImage(staticFrames[1]);
-                freeImage(staticFrames[2]);
-                freeImage(staticFrames[3]);
+            void unloadStatic() {
+                freeImageArray(staticFrames);
             }
         }
     }
 
-    namespace n_newspaper{
-        Image *newspaper;
+    namespace n_newspaper {
+        Image* newspaper = nullptr;
         bool loaded = false;
 
-        void loadNewsPaper(){
+        void loadNewsPaper() {
+            freeImageSafe(newspaper);
             newspaper = loadPng("romfs/gfx/newspaper/paper.png");
             loaded = true;
         }
-        void unloadNewsPaper(){
-            freeImage(newspaper);
+        void unloadNewsPaper() {
+            freeImageSafe(newspaper);
             loaded = false;
         }
     }
 
-    namespace n_ending{
-        Image *ending;
+    namespace n_ending {
+        Image* ending = nullptr;
 
-        void loadEnding(){
-            if (save::whichNight == 5){
+        void loadEnding() {
+            freeImageSafe(ending);
+            if (save::whichNight == 5) {
+                ending = loadPng("romfs/gfx/ending/good.png");
+            } else if (save::whichNight == 7) {
+                ending = loadPng("romfs/gfx/ending/bad.png");
+            } else {
+                // Fallback if needed; keep empty if no graphic for other nights
                 ending = loadPng("romfs/gfx/ending/good.png");
             }
-            if (save::whichNight == 7){
-                ending = loadPng("romfs/gfx/ending/bad.png");
-            }
         }
-        void unloadEnding(){
-            freeImage(ending);
+        void unloadEnding() {
+            freeImageSafe(ending);
         }
     }
 
-    namespace n_noPower{
-        Image *noPower[2];
+    namespace n_noPower {
+        Image* noPower[2] = {nullptr, nullptr};
 
-        void loadNoPower(){
+        void loadNoPower() {
             noPower[0] = loadPng("romfs/gfx/powerout/freddy1.png");
             noPower[1] = loadPng("romfs/gfx/powerout/freddy2.png");
         }
-        void unloadNoPower(){
-            freeImage(noPower[0]);
-            freeImage(noPower[1]);
+        void unloadNoPower() {
+            freeImageArray(noPower);
         }
     }
 }
 
-namespace sprite{
+namespace sprite {
 
-    namespace menu{
-        Image *star;
+    namespace menu {
+        Image* star = nullptr;
 
-        void loadStar(){
+        void loadStar() {
             star = loadPng("romfs/gfx/menu/star.png");
         }
-        void unloadStar(){
-            freeImage(star);
+        void unloadStar() {
+            freeImageSafe(star);
         }
     }
-    namespace nightinfo{
-        Image *info;
-        Image *clock;
 
-        void loadNightInfoSprite(){
-            info = loadPng("romfs/gfx/nightinfo/info.png");
+    namespace nightinfo {
+        Image* info = nullptr;
+        Image* clock = nullptr;
+
+        void loadNightInfoSprite() {
+            info  = loadPng("romfs/gfx/nightinfo/info.png");
             clock = loadPng("romfs/gfx/nightinfo/clock.png");
         }
-        void unloadNightInfoSprite(){
-            freeImage(info);
-            freeImage(clock);
+        void unloadNightInfoSprite() {
+            freeImageSafe(info);
+            freeImageSafe(clock);
         }
     }
 
+    namespace office {
+        Image* buttonsLeft[4]  = {nullptr, nullptr, nullptr, nullptr};
+        Image* buttonsRight[4] = {nullptr, nullptr, nullptr, nullptr};
 
-    namespace office{
-        Image *buttonsLeft[4];
-        Image *buttonsRight[4];
-
-        void loadButtons(){
+        void loadButtons() {
             buttonsLeft[0] = loadPng("romfs/gfx/office/buttons/left/left_0.png");
             buttonsLeft[1] = loadPng("romfs/gfx/office/buttons/left/left_1.png");
             buttonsLeft[2] = loadPng("romfs/gfx/office/buttons/left/left_2.png");
@@ -160,23 +170,15 @@ namespace sprite{
             buttonsRight[2] = loadPng("romfs/gfx/office/buttons/right/right_2.png");
             buttonsRight[3] = loadPng("romfs/gfx/office/buttons/right/right_3.png");
         }
-        void unloadButtons(){
-            freeImage(buttonsLeft[0]);
-            freeImage(buttonsLeft[1]);
-            freeImage(buttonsLeft[2]);
-            freeImage(buttonsLeft[3]);
-
-            freeImage(buttonsRight[0]);
-            freeImage(buttonsRight[1]);
-            freeImage(buttonsRight[2]);
-            freeImage(buttonsRight[3]);
+        void unloadButtons() {
+            freeImageArray(buttonsLeft);
+            freeImageArray(buttonsRight);
         }
 
+        Image* doorLeft[7]  = {nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr};
+        Image* doorRight[7] = {nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr};
 
-        Image *doorLeft[7];
-        Image *doorRight[7];
-
-        void loadDoors(){
+        void loadDoors() {
             doorLeft[0] = loadPng("romfs/gfx/office/doors/left/door_1.png");
             doorLeft[1] = loadPng("romfs/gfx/office/doors/left/door_2.png");
             doorLeft[2] = loadPng("romfs/gfx/office/doors/left/door_3.png");
@@ -192,36 +194,20 @@ namespace sprite{
             doorRight[4] = loadPng("romfs/gfx/office/doors/right/door_5.png");
             doorRight[5] = loadPng("romfs/gfx/office/doors/right/door_6.png");
             doorRight[6] = loadPng("romfs/gfx/office/doors/right/door_7.png");
-            //doorRight[7] = loadPng("romfs/gfx/office/doors/right/door_8.png");
         }
-        void unloadDoors(){
-            freeImage(doorLeft[0]);
-            freeImage(doorLeft[1]);
-            freeImage(doorLeft[2]);
-            freeImage(doorLeft[3]);
-            freeImage(doorLeft[4]);
-            freeImage(doorLeft[5]);
-            freeImage(doorLeft[6]);
-
-            freeImage(doorRight[0]);
-            freeImage(doorRight[1]);
-            freeImage(doorRight[2]);
-            freeImage(doorRight[3]);
-            freeImage(doorRight[4]);
-            freeImage(doorRight[5]);
-            freeImage(doorRight[6]);
-            //freeImage(doorRight[7]);
+        void unloadDoors() {
+            freeImageArray(doorLeft);
+            freeImageArray(doorRight);
         }
     }
 
+    namespace UI {
+        namespace office {
+            Image* powerBar[5] = {nullptr, nullptr, nullptr, nullptr, nullptr};
+            Image* usageFrame = nullptr;
+            Image* powerLeft = nullptr;
 
-    namespace UI{
-        namespace office{
-            Image *powerBar[5];
-            Image *usageFrame;
-            Image *powerLeft;
-
-            void loadPowerInfo(){
+            void loadPowerInfo() {
                 powerBar[0] = loadPng("romfs/gfx/office/ui/bar_1.png");
                 powerBar[1] = loadPng("romfs/gfx/office/ui/bar_2.png");
                 powerBar[2] = loadPng("romfs/gfx/office/ui/bar_3.png");
@@ -229,239 +215,190 @@ namespace sprite{
                 powerBar[4] = loadPng("romfs/gfx/office/ui/bar_5.png");
 
                 usageFrame = loadPng("romfs/gfx/office/ui/usage.png");
-
-                powerLeft = loadPng("romfs/gfx/office/ui/powerLeft.png");
+                powerLeft  = loadPng("romfs/gfx/office/ui/powerLeft.png");
             }
-            void unloadPowerInfo(){
-                freeImage(powerBar[0]);
-                freeImage(powerBar[1]);
-                freeImage(powerBar[2]);
-                freeImage(powerBar[3]);
-                freeImage(powerBar[4]);
-
-                freeImage(usageFrame);
-
-                freeImage(powerLeft);
+            void unloadPowerInfo() {
+                freeImageArray(powerBar);
+                freeImageSafe(usageFrame);
+                freeImageSafe(powerLeft);
             }
 
+            Image* AM = nullptr;
+            Image* Night = nullptr;
 
-            Image *AM;
-            Image *Night;
-
-            void loadTimeInfo(){
-                AM = loadPng("romfs/gfx/office/ui/AM.png");
+            void loadTimeInfo() {
+                AM    = loadPng("romfs/gfx/office/ui/AM.png");
                 Night = loadPng("romfs/gfx/office/ui/Night.png");
             }
-            void unloadTimeInfo(){
-                freeImage(AM);
-                freeImage(Night);
+            void unloadTimeInfo() {
+                freeImageSafe(AM);
+                freeImageSafe(Night);
             }
 
+            Image* camFlip[4] = {nullptr, nullptr, nullptr, nullptr};
 
-            Image *camFlip[4];
-
-            void loadCamFlip(){
+            void loadCamFlip() {
                 camFlip[0] = loadPng("romfs/gfx/office/camera/animation/flip_0.png");
                 camFlip[1] = loadPng("romfs/gfx/office/camera/animation/flip_1.png");
                 camFlip[2] = loadPng("romfs/gfx/office/camera/animation/flip_2.png");
                 camFlip[3] = loadPng("romfs/gfx/office/camera/animation/flip_3.png");
-                //camFlip[4] = loadPng("romfs/gfx/office/camera/animation/flip_4.png");
-                //camFlip[5] = loadPng("romfs/gfx/office/camera/animation/flip_5.png");
-                //camFlip[6] = loadPng("romfs/gfx/office/camera/animation/flip_6.png");
-                //camFlip[7] = loadPng("romfs/gfx/office/camera/animation/flip_7.png");
-                //camFlip[8] = loadPng("romfs/gfx/office/camera/animation/flip_8.png");
-                //camFlip[9] = loadPng("romfs/gfx/office/camera/animation/flip_9.png");
-                //camFlip[10] = loadPng("romfs/gfx/office/camera/animation/flip_10.png");
             }
-            void unloadCamFlip(){
-                freeImage(camFlip[0]);
-                freeImage(camFlip[1]);
-                freeImage(camFlip[2]);
-                freeImage(camFlip[3]);
-                //freeImage(camFlip[4]);
-                //freeImage(camFlip[5]);
-                //freeImage(camFlip[6]);
-                //freeImage(camFlip[7]);
-                //freeImage(camFlip[8]);
-                //freeImage(camFlip[9]);
-                //freeImage(camFlip[10]);
+            void unloadCamFlip() {
+                freeImageArray(camFlip);
             }
 
+            Image* cams[11] = {nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr};
+ 
+static std::string lastPath[11];
+    // Retire queue (fixed-size, no heap)
+        static Image* retireQueue[32];
+        static int retireCount = 0;
 
-            Image *cams[11];
+        static inline void queueRetire(Image* img) {
+            if (!img) return;
+            if (retireCount < (int)(sizeof(retireQueue)/sizeof(retireQueue[0]))) {
+        retireQueue[retireCount++] = img;
+         } else {
+        // Fallback if queue overflows (rare): free now
+        freeImage(img);
+    }
+}
 
-            float freddyPosition = 0;
-            float bonniePosition = 0;
-            float chicaPosition = 0;
-            float foxyPosition = 0;
+void postFrame() {
+    for (int i = 0; i < retireCount; ++i) {
+        freeImage(retireQueue[i]);
+    }
+    retireCount = 0;
+}
+            int freddyPosition = 0;
+            int bonniePosition = 0;
+            int chicaPosition = 0;
+            int foxyPosition = 0;
 
             bool loaded = false;
+            
+// Build the desired file path for a camera slot based on animatronic positions
+static std::string buildCamPath(int idx) {
+    // Helper to compose paths
+    auto P = [](const char* subdir, const char* name) {
+        return std::string("romfs/gfx/office/camera/") + subdir + name + ".png";
+    };
 
-            //bool freddyPrior = false;
-            //bool bonniePrior = false;
-            //bool chicaPrior = false;
-            //bool foxyPrior = false;
+    // Shortcuts
+    int f = freddyPosition;
+    int b = bonniePosition;
+    int c = chicaPosition;
+    int x = foxyPosition;
 
-            /*
-            bool cam1aloaded = true;
-            bool cam1bloaded = false;
-            bool cam1cloaded = false;
+    switch (idx) {
+        case 0: // Cam 1A
+            if (f > 0) f = 0; // keep original behavior
+            if (f == 0 && b == 0 && c == 0) return P("main/", "cam1a");
+            if (f == 0 && b > 0 && c == 0)  return P("animatronic/cam1a/", "cam1a-freddy&chica");
+            if (f == 0 && b == 0 && c > 0)  return P("animatronic/cam1a/", "cam1a-freddy&bonnie");
+            if (f == 0 && b > 0 && c > 0)   return (save::whichNight < 4)
+                                                ? P("animatronic/cam1a/", "cam1a-freddy")
+                                                : P("animatronic/cam1a/", "cam1a-freddystare");
+            return P("animatronic/cam1a/", "cam1a-empty");
 
-            bool cam2aloaded = false;
-            bool cam2bloaded = false;
+        case 1: // Cam 1B
+            if (b == 1 && c != 1 && f != 1) return P("animatronic/cam1b/", "cam1b-bonnie");
+            if (b != 1 && c == 1 && f != 1) return P("animatronic/cam1b/", "cam1b-chica");
+            if (f == 1)                     return P("animatronic/cam1b/", "cam1b-freddy");
+            return P("main/", "cam1b");
 
-            bool cam3loaded = false;
-
-            bool cam4aloaded = false;
-            bool cam4bloaded = false;
-            */
-
-            //int whichCamera;
-
-            void loadCams() {
-                // Helper function to determine camera path
-                auto getPath = [](const std::string& basePath, const std::string& suffix) -> std::string {
-                    return "romfs/gfx/office/camera/" + basePath + suffix + ".png";
-                };
-
-                // Cam 1A
-                if (freddyPosition > 0) freddyPosition = 0;
-                if (freddyPosition == 0 && bonniePosition == 0 && chicaPosition == 0) {
-                    cams[0] = loadPng(getPath("main/", "cam1a").c_str());
-                } else if (freddyPosition == 0 && bonniePosition > 0 && chicaPosition == 0) {
-                    cams[0] = loadPng(getPath("animatronic/cam1a/", "cam1a-freddy&chica").c_str());
-                } else if (freddyPosition == 0 && bonniePosition == 0 && chicaPosition > 0) {
-                    cams[0] = loadPng(getPath("animatronic/cam1a/", "cam1a-freddy&bonnie").c_str());
-                } else if (freddyPosition == 0 && bonniePosition > 0 && chicaPosition > 0) {
-                    cams[0] = loadPng((save::whichNight < 4)
-                                        ? getPath("animatronic/cam1a/", "cam1a-freddy").c_str()
-                                        : getPath("animatronic/cam1a/", "cam1a-freddystare").c_str());
-                } else {
-                    cams[0] = loadPng(getPath("animatronic/cam1a/", "cam1a-empty").c_str());
-                }
-
-                // Cam 1B
-                if (bonniePosition == 1 && chicaPosition != 1 && freddyPosition != 1) {
-                    cams[1] = loadPng(getPath("animatronic/cam1b/", "cam1b-bonnie").c_str());
-                } else if (bonniePosition != 1 && chicaPosition == 1 && freddyPosition != 1) {
-                    cams[1] = loadPng(getPath("animatronic/cam1b/", "cam1b-chica").c_str());
-                } else if (freddyPosition == 1) {
-                    cams[1] = loadPng(getPath("animatronic/cam1b/", "cam1b-freddy").c_str());
-                } else {
-                    cams[1] = loadPng(getPath("main/", "cam1b").c_str());
-                }
-
-                // Cam 1C
-                int foxyPosInt = static_cast<int>(foxyPosition); // Cast to integer
-                std::string cam1C;
-
-                switch (foxyPosInt) {
-                    case 0:
-                        cam1C = "cam1c";
-                        cams[2] = loadPng(getPath("main/", cam1C).c_str());
-                        break;
-                    case 1:
-                        cam1C = "cam1c-foxy1";
-                        cams[2] = loadPng(getPath("animatronic/cam1c/", cam1C).c_str());
-                        break;
-                    case 2:
-                        cam1C = "cam1c-foxy2";
-                        cams[2] = loadPng(getPath("animatronic/cam1c/", cam1C).c_str());
-                        break;
-                    default:
-                        cam1C = "cam1c-foxy3";
-                        cams[2] = loadPng(getPath("animatronic/cam1c/", cam1C).c_str());
-                        break;
-                }
-
-                // Cam 2A
-                cams[3] = (bonniePosition == 3)
-                            ? loadPng(getPath("animatronic/cam2a/", "cam2a-bonnie").c_str())
-                            : loadPng(getPath("main/", "cam2a").c_str());
-
-                // Cam 2B
-                cams[4] = (bonniePosition == 5)
-                            ? loadPng(getPath("animatronic/cam2b/", "cam2b-bonnie").c_str())
-                            : loadPng(getPath("main/", "cam2b").c_str());
-
-                // Cam 3
-                cams[5] = (bonniePosition == 4)
-                            ? loadPng(getPath("animatronic/cam3/", "cam3-bonnie").c_str())
-                            : loadPng(getPath("main/", "cam3").c_str());
-
-                // Cam 4A
-                if (chicaPosition == 3 && freddyPosition != 3) {
-                    cams[6] = loadPng(getPath("animatronic/cam4a/", "cam4a-chica").c_str());
-                } else if (chicaPosition == 4 && freddyPosition != 3) {
-                    cams[6] = loadPng(getPath("animatronic/cam4a/", "cam4a-chicaclose").c_str());
-                } else if (freddyPosition == 3) {
-                    cams[6] = loadPng(getPath("animatronic/cam4a/", "cam4a-freddy").c_str());
-                } else {
-                    cams[6] = loadPng(getPath("main/", "cam4a").c_str());
-                }
-
-                // Cam 4B
-                if (chicaPosition == 5 && freddyPosition != 4) {
-                    cams[7] = loadPng(getPath("animatronic/cam4b/", "cam4b-chica").c_str());
-                } else if (freddyPosition == 4) {
-                    cams[7] = loadPng(getPath("animatronic/cam4b/", "cam4b-freddy").c_str());
-                } else {
-                    cams[7] = loadPng(getPath("main/", "cam4b").c_str());
-                }
-
-                // Cam 5
-                cams[8] = (bonniePosition == 7)
-                            ? loadPng((save::whichNight > 4)
-                                            ? getPath("animatronic/cam5/", "cam5-bonnieclose").c_str()
-                                            : getPath("animatronic/cam5/", "cam5-bonnie").c_str())
-                            : loadPng(getPath("main/", "cam5").c_str());
-
-                // Cam 6
-                cams[9] = loadPng(getPath("main/", "cam6").c_str());
-
-                // Cam 7
-                if (chicaPosition == 7 && freddyPosition != 2) {
-                    cams[10] = loadPng(getPath("animatronic/cam7/", "cam7-chica").c_str());
-                } else if (chicaPosition == 8 && freddyPosition != 2) {
-                    cams[10] = loadPng(getPath("animatronic/cam7/", "cam7-chicaclose").c_str());
-                } else if (freddyPosition == 2) {
-                    cams[10] = loadPng(getPath("animatronic/cam7/", "cam7-freddy").c_str());
-                } else {
-                    cams[10] = loadPng(getPath("main/", "cam7").c_str());
-                }
-
-                loaded = true;
+        case 2: // Cam 1C (Foxy)
+            switch (x) {
+                case 0:  return P("main/", "cam1c");
+                case 1:  return P("animatronic/cam1c/", "cam1c-foxy1");
+                case 2:  return P("animatronic/cam1c/", "cam1c-foxy2");
+                default: return P("animatronic/cam1c/", "cam1c-foxy3");
             }
 
+        case 3: // Cam 2A
+            return (b == 3) ? P("animatronic/cam2a/", "cam2a-bonnie") : P("main/", "cam2a");
 
+        case 4: // Cam 2B
+            return (b == 5) ? P("animatronic/cam2b/", "cam2b-bonnie") : P("main/", "cam2b");
 
-            void unloadCams(){
-                freeImage(cams[0]);
-                freeImage(cams[1]);
-                freeImage(cams[2]);
-                freeImage(cams[3]);
-                freeImage(cams[4]);
-                freeImage(cams[5]);
-                freeImage(cams[6]);
-                freeImage(cams[7]);
-                freeImage(cams[8]);
-                freeImage(cams[9]);
-                freeImage(cams[10]);
+        case 5: // Cam 3
+            return (b == 4) ? P("animatronic/cam3/", "cam3-bonnie") : P("main/", "cam3");
 
-                loaded = false;
+        case 6: // Cam 4A
+            if (c == 3 && f != 3) return P("animatronic/cam4a/", "cam4a-chica");
+            if (c == 4 && f != 3) return P("animatronic/cam4a/", "cam4a-chicaclose");
+            if (f == 3)           return P("animatronic/cam4a/", "cam4a-freddy");
+            return P("main/", "cam4a");
+
+        case 7: // Cam 4B
+            if (c == 5 && f != 4) return P("animatronic/cam4b/", "cam4b-chica");
+            if (f == 4)           return P("animatronic/cam4b/", "cam4b-freddy");
+            return P("main/", "cam4b");
+
+        case 8: // Cam 5
+            if (b == 7)
+                return (save::whichNight > 4)
+                    ? P("animatronic/cam5/", "cam5-bonnieclose")
+                    : P("animatronic/cam5/", "cam5-bonnie");
+            return P("main/", "cam5");
+
+        case 9: // Cam 6
+            return P("main/", "cam6");
+
+        case 10: // Cam 7
+            if (c == 7 && f != 2) return P("animatronic/cam7/", "cam7-chica");
+            if (c == 8 && f != 2) return P("animatronic/cam7/", "cam7-chicaclose");
+            if (f == 2)           return P("animatronic/cam7/", "cam7-freddy");
+            return P("main/", "cam7");
+    }
+    // Fallback (shouldn’t happen)
+    return P("main/", "cam6");
+}
+static int nextCamIdx = 0;
+static constexpr int kCamReloadBudget = 2; // tune 2..4
+
+void loadCams() {
+    if (!loaded) { for (int i = 0; i < 11; ++i) lastPath[i].clear(); }
+
+    int processed = 0;
+    int reloaded = 0;
+    while (processed < 11 && reloaded < kCamReloadBudget) {
+        int i = (nextCamIdx + processed) % 11;
+        const std::string newPath = buildCamPath(i);
+
+        if (!(lastPath[i] == newPath && cams[i])) {
+            Image* newImg = loadPng(newPath.c_str());
+            if (newImg) {
+                queueRetire(cams[i]);
+                cams[i] = newImg;
+                lastPath[i] = newPath;
             }
+            reloaded++;
+        }
+        processed++;
+    }
+    nextCamIdx = (nextCamIdx + processed) % 11;
+    loaded = true;
+}
 
+void unloadCams() {
+    for (int i = 0; i < 11; ++i) {
+        queueRetire(cams[i]);
+        cams[i] = nullptr;
+        lastPath[i].clear();
+    }
+    loaded = false;
+}
+            Image* camNames[11]   = {nullptr};
+            Image* camButtons[11] = {nullptr};
+            Image* reticle   = nullptr;
+            Image* camBorder = nullptr;
+            Image* recording = nullptr;
+            Image* camMap    = nullptr;
 
-            Image *camNames[11];
-            Image *camButtons[11];
-            Image *reticle;
-            Image *camBorder;
-            Image *recording;
-            Image *camMap;
-
-            void loadCamUi(){
+            void loadCamUi() {
                 camBorder = loadPng("romfs/gfx/office/ui/camera_border.png"); 
-                camMap = loadPng("romfs/gfx/office/ui/camera-map.png");
+                camMap    = loadPng("romfs/gfx/office/ui/camera-map.png");
                 recording = loadPng("romfs/gfx/office/ui/recording.png");
 
                 camNames[0] = loadPng("romfs/gfx/office/ui/cam-names/ShowStage.png");
@@ -474,165 +411,135 @@ namespace sprite{
                 camNames[7] = loadPng("romfs/gfx/office/ui/cam-names/E-Hall-corner.png");
                 camNames[8] = loadPng("romfs/gfx/office/ui/cam-names/BackStage.png");
                 camNames[9] = loadPng("romfs/gfx/office/ui/cam-names/Kitchen.png");
-                camNames[10] = loadPng("romfs/gfx/office/ui/cam-names/Restrooms.png");
+                camNames[10]= loadPng("romfs/gfx/office/ui/cam-names/Restrooms.png");
 
-                camButtons[0] = loadPng("romfs/gfx/office/camera/main/buttons/cam1a.png");
-                camButtons[1] = loadPng("romfs/gfx/office/camera/main/buttons/cam1b.png");
-                camButtons[2] = loadPng("romfs/gfx/office/camera/main/buttons/cam1c.png");
-                camButtons[3] = loadPng("romfs/gfx/office/camera/main/buttons/cam2a.png");
-                camButtons[4] = loadPng("romfs/gfx/office/camera/main/buttons/cam2b.png");
-                camButtons[5] = loadPng("romfs/gfx/office/camera/main/buttons/cam3.png");
-                camButtons[6] = loadPng("romfs/gfx/office/camera/main/buttons/cam4a.png");
-                camButtons[7] = loadPng("romfs/gfx/office/camera/main/buttons/cam4b.png");
-                camButtons[8] = loadPng("romfs/gfx/office/camera/main/buttons/cam5.png");
-                camButtons[9] = loadPng("romfs/gfx/office/camera/main/buttons/cam6.png");
+                camButtons[0]  = loadPng("romfs/gfx/office/camera/main/buttons/cam1a.png");
+                camButtons[1]  = loadPng("romfs/gfx/office/camera/main/buttons/cam1b.png");
+                camButtons[2]  = loadPng("romfs/gfx/office/camera/main/buttons/cam1c.png");
+                camButtons[3]  = loadPng("romfs/gfx/office/camera/main/buttons/cam2a.png");
+                camButtons[4]  = loadPng("romfs/gfx/office/camera/main/buttons/cam2b.png");
+                camButtons[5]  = loadPng("romfs/gfx/office/camera/main/buttons/cam3.png");
+                camButtons[6]  = loadPng("romfs/gfx/office/camera/main/buttons/cam4a.png");
+                camButtons[7]  = loadPng("romfs/gfx/office/camera/main/buttons/cam4b.png");
+                camButtons[8]  = loadPng("romfs/gfx/office/camera/main/buttons/cam5.png");
+                camButtons[9]  = loadPng("romfs/gfx/office/camera/main/buttons/cam6.png");
                 camButtons[10] = loadPng("romfs/gfx/office/camera/main/buttons/cam7.png");
 
                 reticle = loadPng("romfs/gfx/office/camera/main/buttons/reticle.png");
             }
-            void unloadCamUi(){
-                freeImage(camBorder);
-                freeImage(camMap);
-                freeImage(recording);
+            void unloadCamUi() {
+                freeImageSafe(camBorder);
+                freeImageSafe(camMap);
+                freeImageSafe(recording);
 
-                freeImage(camNames[0]);
-                freeImage(camNames[1]);
-                freeImage(camNames[2]);
-                freeImage(camNames[3]);
-                freeImage(camNames[4]);
-                freeImage(camNames[5]);
-                freeImage(camNames[6]);
-                freeImage(camNames[7]);
-                freeImage(camNames[8]);
-                freeImage(camNames[9]);
-                freeImage(camNames[10]);
-
-                freeImage(camButtons[0]);
-                freeImage(camButtons[1]);
-                freeImage(camButtons[2]);
-                freeImage(camButtons[3]);
-                freeImage(camButtons[4]);
-                freeImage(camButtons[5]);
-                freeImage(camButtons[6]);
-                freeImage(camButtons[7]);
-                freeImage(camButtons[8]);
-                freeImage(camButtons[9]);
-                freeImage(camButtons[10]);
-
-                freeImage(reticle);
+                freeImageArray(camNames);
+                freeImageArray(camButtons);
+                freeImageSafe(reticle);
             }
         }
 
-        namespace customnight{
-            Image *icons[4];
-            Image *reticle;
-            Image *instructions[2];
-            Image *title;
-            Image *arrows[2];
-            Image *levelDesc;
-            Image *difficulty;
-            Image *names[4];
-            Image *create;
-            Image *exit;
-            Image *goldFreddy;
+        namespace customnight {
+            Image* icons[4]         = {nullptr, nullptr, nullptr, nullptr};
+            Image* reticle          = nullptr;
+            Image* instructions[2]  = {nullptr, nullptr};
+            Image* title            = nullptr;
+            Image* arrows[2]        = {nullptr, nullptr};
+            Image* levelDesc        = nullptr;
+            Image* difficulty       = nullptr;
+            Image* names[4]         = {nullptr, nullptr, nullptr, nullptr};
+            Image* create           = nullptr;
+            Image* exit             = nullptr;
+            Image* goldFreddy       = nullptr;
 
-            void loadIcons(){
+            void loadIcons() {
                 icons[0] = loadPng("romfs/gfx/customnight/icons/freddy.png");
                 icons[1] = loadPng("romfs/gfx/customnight/icons/bonnie.png");
                 icons[2] = loadPng("romfs/gfx/customnight/icons/chika.png");
                 icons[3] = loadPng("romfs/gfx/customnight/icons/foxy.png");
             }
-            void unloadIcons(){
-                freeImage(icons[0]);
-                freeImage(icons[1]);
-                freeImage(icons[2]);
-                freeImage(icons[3]);
+            void unloadIcons() {
+                freeImageArray(icons);
             }
 
-            void loadReticle(){
+            void loadReticle() {
                 reticle = loadPng("romfs/gfx/customnight/icons/reticle.png");
             }
-            void unloadReticle(){
-                freeImage(reticle);
+            void unloadReticle() {
+                freeImageSafe(reticle);
             }
 
-            void loadInstructions(){
+            void loadInstructions() {
                 instructions[0] = loadPng("romfs/gfx/customnight/ui/L.png");
                 instructions[1] = loadPng("romfs/gfx/customnight/ui/R.png");
             }
-            void unloadInstructions(){
-                freeImage(instructions[0]);
-                freeImage(instructions[1]);
+            void unloadInstructions() {
+                freeImageArray(instructions);
             }
 
-            void loadTitle(){
+            void loadTitle() {
                 title = loadPng("romfs/gfx/customnight/ui/title.png");
             }
-            void unloadTitle(){
-                freeImage(title);
+            void unloadTitle() {
+                freeImageSafe(title);
             }
 
-            void loadArrows(){
+            void loadArrows() {
                 arrows[0] = loadPng("romfs/gfx/customnight/ui/left.png");
                 arrows[1] = loadPng("romfs/gfx/customnight/ui/right.png");
             }
-            void unloadArrows(){
-                freeImage(arrows[0]);
-                freeImage(arrows[1]);
+            void unloadArrows() {
+                freeImageArray(arrows);
             }
 
-            void loadText(){
-                levelDesc = loadPng("romfs/gfx/customnight/ui/AI.png");
+            void loadText() {
+                levelDesc  = loadPng("romfs/gfx/customnight/ui/AI.png");
                 difficulty = loadPng("romfs/gfx/customnight/ui/difficulty.png");
             }
-            void unloadText(){
-                freeImage(levelDesc);
-                freeImage(difficulty);
+            void unloadText() {
+                freeImageSafe(levelDesc);
+                freeImageSafe(difficulty);
             }
 
-            void loadNames(){
+            void loadNames() {
                 names[0] = loadPng("romfs/gfx/customnight/ui/freddy.png");
                 names[1] = loadPng("romfs/gfx/customnight/ui/bonnie.png");
                 names[2] = loadPng("romfs/gfx/customnight/ui/chika.png");
                 names[3] = loadPng("romfs/gfx/customnight/ui/foxy.png");
             }
-            void unloadNames(){
-                freeImage(names[0]);
-                freeImage(names[1]);
-                freeImage(names[2]);
-                freeImage(names[3]);
+            void unloadNames() {
+                freeImageArray(names);
             }
 
-            void loadActions(){
+            void loadActions() {
                 create = loadPng("romfs/gfx/customnight/ui/create.png");
-                exit = loadPng("romfs/gfx/customnight/ui/exit.png");
+                exit   = loadPng("romfs/gfx/customnight/ui/exit.png");
             }
-            void unloadActions(){
-                freeImage(create);
-                freeImage(exit);
+            void unloadActions() {
+                freeImageSafe(create);
+                freeImageSafe(exit);
             }
 
-            void loadGoldenFreddy(){
+            void loadGoldenFreddy() {
                 goldFreddy = loadPng("romfs/gfx/customnight/ui/gold.png");
             }
-            void unloadGoldenFreddy(){
-                //i purposfully unload while rendering so boom, crash
-                freeImage(goldFreddy);
+            void unloadGoldenFreddy() {
+                freeImageSafe(goldFreddy);
             }
         }
     }
 
-    namespace n_jumpscare{
-        Image *jumpscareAnim[9];
-        float whichJumpscare;
-
-        //int ThreadIdJ;
-        //int PspThreadStatus = 1;
-
+    namespace n_jumpscare {
+        Image* jumpscareAnim[9] = {nullptr};
+        int whichJumpscare = 0;
         bool loaded = false;
-        //bool wasFreddy = false;
 
-        void loadFreddy(){
+        static inline void unloadFrames() {
+            freeImageArray(jumpscareAnim);
+            loaded = false;
+        }
+
+        void loadFreddy() {
+            unloadFrames();
             jumpscareAnim[0] = loadPng("romfs/gfx/jumpscare/freddy/0.png");
             jumpscareAnim[1] = loadPng("romfs/gfx/jumpscare/freddy/1.png");
             jumpscareAnim[2] = loadPng("romfs/gfx/jumpscare/freddy/2.png");
@@ -642,11 +549,11 @@ namespace sprite{
             jumpscareAnim[6] = loadPng("romfs/gfx/jumpscare/freddy/6.png");
             jumpscareAnim[7] = loadPng("romfs/gfx/jumpscare/freddy/7.png");
             jumpscareAnim[8] = loadPng("romfs/gfx/jumpscare/freddy/8.png");
-
             loaded = true;
         }
 
-        void loadBonnie(){
+        void loadBonnie() {
+            unloadFrames();
             jumpscareAnim[0] = loadPng("romfs/gfx/jumpscare/bonnie/0.png");
             jumpscareAnim[1] = loadPng("romfs/gfx/jumpscare/bonnie/1.png");
             jumpscareAnim[2] = loadPng("romfs/gfx/jumpscare/bonnie/2.png");
@@ -656,11 +563,11 @@ namespace sprite{
             jumpscareAnim[6] = loadPng("romfs/gfx/jumpscare/bonnie/6.png");
             jumpscareAnim[7] = loadPng("romfs/gfx/jumpscare/bonnie/7.png");
             jumpscareAnim[8] = loadPng("romfs/gfx/jumpscare/bonnie/8.png");
-
             loaded = true;
         }
 
-        void loadChica(){
+        void loadChica() {
+            unloadFrames();
             jumpscareAnim[0] = loadPng("romfs/gfx/jumpscare/chica/0.png");
             jumpscareAnim[1] = loadPng("romfs/gfx/jumpscare/chica/1.png");
             jumpscareAnim[2] = loadPng("romfs/gfx/jumpscare/chica/2.png");
@@ -670,11 +577,11 @@ namespace sprite{
             jumpscareAnim[6] = loadPng("romfs/gfx/jumpscare/chica/6.png");
             jumpscareAnim[7] = loadPng("romfs/gfx/jumpscare/chica/7.png");
             jumpscareAnim[8] = loadPng("romfs/gfx/jumpscare/chica/8.png");
-
             loaded = true;
         }
 
-        void loadFoxy(){
+        void loadFoxy() {
+            unloadFrames();
             jumpscareAnim[0] = loadPng("romfs/gfx/jumpscare/foxy/0.png");
             jumpscareAnim[1] = loadPng("romfs/gfx/jumpscare/foxy/1.png");
             jumpscareAnim[2] = loadPng("romfs/gfx/jumpscare/foxy/2.png");
@@ -684,90 +591,59 @@ namespace sprite{
             jumpscareAnim[6] = loadPng("romfs/gfx/jumpscare/foxy/6.png");
             jumpscareAnim[7] = loadPng("romfs/gfx/jumpscare/foxy/7.png");
             jumpscareAnim[8] = loadPng("romfs/gfx/jumpscare/foxy/8.png");
-
             loaded = true;
         }
 
-        void loadJumpscare(){
+        void loadJumpscare() {
+            // Always unload the previous set before loading a new one
+            unloadFrames();
 
-            //unloadJumpscare();
-
-            if (whichJumpscare == 1){
-                loadFreddy();
-            }
-            else if (whichJumpscare == 2){
-                loadBonnie();
-            }
-            else if (whichJumpscare == 3){
-                loadChica();
-            }
-            else if (whichJumpscare == 4){
-                loadFoxy();
-            }
-
-            
+            if (whichJumpscare == 1)      loadFreddy();
+            else if (whichJumpscare == 2) loadBonnie();
+            else if (whichJumpscare == 3) loadChica();
+            else if (whichJumpscare == 4) loadFoxy();
         }
-        void unloadJumpscare(){
-            if (loaded == true){
-                freeImage(jumpscareAnim[0]);
-                freeImage(jumpscareAnim[1]);
-                freeImage(jumpscareAnim[2]);
-                freeImage(jumpscareAnim[3]);
-                freeImage(jumpscareAnim[4]);
-                freeImage(jumpscareAnim[5]);
-                freeImage(jumpscareAnim[6]);
-                freeImage(jumpscareAnim[7]);
-                freeImage(jumpscareAnim[8]);
 
-                loaded = false;
-            }
+        void unloadJumpscare() {
+            unloadFrames();
         }
     }
 }
 
-namespace officeImage{
-    Image *office1Sprites[5];
-    Image *office2Sprites[5];
+namespace officeImage {
+    Image* office1Sprites[5] = {nullptr, nullptr, nullptr, nullptr, nullptr};
+    Image* office2Sprites[5] = {nullptr, nullptr, nullptr, nullptr, nullptr};
 
-    void loadOffice1Sprites(){
+    void loadOffice1Sprites() {
         office1Sprites[0] = loadPng("romfs/gfx/office/chuncks/nothing/office_1.png");
         office1Sprites[1] = loadPng("romfs/gfx/office/chuncks/left-empty/office_1.png");
         office1Sprites[2] = loadPng("romfs/gfx/office/chuncks/right-empty/office_1.png");
         office1Sprites[3] = loadPng("romfs/gfx/office/chuncks/left-bonnie/office_1.png");
         office1Sprites[4] = loadPng("romfs/gfx/office/chuncks/right-chika/office_1.png");
     }
-    void unloadOffice1Sprites(){
-        freeImage(office1Sprites[0]);
-        freeImage(office1Sprites[1]);
-        freeImage(office1Sprites[2]);
-        freeImage(office1Sprites[3]);
-        freeImage(office1Sprites[4]);
+    void unloadOffice1Sprites() {
+        freeImageArray(office1Sprites);
     }
 
-
-    void loadOffice2Sprites(){
+    void loadOffice2Sprites() {
         office2Sprites[0] = loadPng("romfs/gfx/office/chuncks/nothing/office_2.png");
         office2Sprites[1] = loadPng("romfs/gfx/office/chuncks/left-empty/office_2.png");
         office2Sprites[2] = loadPng("romfs/gfx/office/chuncks/right-empty/office_2.png");
         office2Sprites[3] = loadPng("romfs/gfx/office/chuncks/left-bonnie/office_2.png");
         office2Sprites[4] = loadPng("romfs/gfx/office/chuncks/right-chika/office_2.png");
     }
-    void unloadOffice2Sprites(){
-        freeImage(office2Sprites[0]);
-        freeImage(office2Sprites[1]);
-        freeImage(office2Sprites[2]);
-        freeImage(office2Sprites[3]);
-        freeImage(office2Sprites[4]);
+    void unloadOffice2Sprites() {
+        freeImageArray(office2Sprites);
     }
 }
 
-namespace text{
-    namespace global{
-        Image *nightNumbersNormal[10];
-        Image *nightNumbersPixel[10];
-        Image *symbols;
+namespace text {
+    namespace global {
+        Image* nightNumbersNormal[10] = {nullptr};
+        Image* nightNumbersPixel[10]  = {nullptr};
+        Image* symbols = nullptr;
 
-        void loadNightText(){
+        void loadNightText() {
             nightNumbersNormal[0] = loadPng("romfs/gfx/global/numbers/normal/0-2.png");
             nightNumbersNormal[1] = loadPng("romfs/gfx/global/numbers/normal/1.png");
             nightNumbersNormal[2] = loadPng("romfs/gfx/global/numbers/normal/2.png");
@@ -792,31 +668,10 @@ namespace text{
 
             symbols = loadPng("romfs/gfx/global/numbers/symbols/%.png");
         }
-        void unloadNightText(){
-            freeImage(nightNumbersNormal[0]);
-            freeImage(nightNumbersNormal[1]);
-            freeImage(nightNumbersNormal[2]);
-            freeImage(nightNumbersNormal[3]);
-            freeImage(nightNumbersNormal[4]);
-            freeImage(nightNumbersNormal[5]);
-            freeImage(nightNumbersNormal[6]);
-            freeImage(nightNumbersNormal[7]);
-            freeImage(nightNumbersNormal[8]);
-            freeImage(nightNumbersNormal[9]);
-
-
-            freeImage(nightNumbersPixel[0]);
-            freeImage(nightNumbersPixel[1]);
-            freeImage(nightNumbersPixel[2]);
-            freeImage(nightNumbersPixel[3]);
-            freeImage(nightNumbersPixel[4]);
-            freeImage(nightNumbersPixel[5]);
-            freeImage(nightNumbersPixel[6]);
-            freeImage(nightNumbersPixel[7]);
-            freeImage(nightNumbersPixel[8]);
-            freeImage(nightNumbersPixel[9]);
-
-            freeImage(symbols);
+        void unloadNightText() {
+            freeImageArray(nightNumbersNormal);
+            freeImageArray(nightNumbersPixel);
+            freeImageSafe(symbols);
         }
     }
 }

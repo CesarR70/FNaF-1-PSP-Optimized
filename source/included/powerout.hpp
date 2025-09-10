@@ -10,18 +10,21 @@
 
 //#include "sixam.hpp"
 
-namespace powerout{
+namespace powerout {
 
+    // Call after guSwapBuffers (deferred unload)
+    void postFrame();
+
+    // Reset state for this system
     void reset();
-    
-    namespace resetAll{
-        void reset();
-    }
-    namespace render{
+
+    namespace render {
         void renderPowerout();
     }
-    namespace animate{
+
+    namespace animate {
         void animatePowerOut();
+        // Kept for compatibility; forwards to the one-shot start in .cpp
         void initJumpscare();
     }
 }

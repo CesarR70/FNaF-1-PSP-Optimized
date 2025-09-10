@@ -7,6 +7,9 @@
 
 namespace dead{
 
+    // Call after guSwapBuffers (deferred transition)
+    void postFrame();
+    
     void reset();
     
     namespace n_static{

@@ -26,126 +26,109 @@
 
 using namespace std;
 
-#define BUF_WIDTH (512)
-#define SCR_WIDTH (480)
-#define SCR_HEIGHT (272)
-#define PIXEL_SIZE (4) 
-#define FRAME_SIZE (BUF_WIDTH * SCR_HEIGHT * PIXEL_SIZE)
-#define ZBUF_SIZE (BUF_WIDTH SCR_HEIGHT * 2)
+#define BUF_WIDTH  512
+#define SCR_WIDTH  480
+#define SCR_HEIGHT 272
 
-PSP_MODULE_INFO("FNaF 1 PSP v1.4.0", 0, 1, 0);
+#include <pspkernel.h>
 
+PSP_MODULE_INFO("FNaF 1 PSP v1.5", 0, 1, 0);
 PSP_MAIN_THREAD_ATTR(THREAD_ATTR_USER | THREAD_ATTR_VFPU);
-PSP_HEAP_SIZE_KB(-1024);
+// Choose one heap macro (pick only one):
+PSP_HEAP_SIZE_KB(-1024); // maximize heap (reserve ~1MB for system)
+// PSP_HEAP_SIZE_MAX();   // alternative macro in newer SDKs
 
-#if _PSP_FW_VERSION >= 200
-PSP_HEAP_SIZE_KB(20480);
-#endif
+void* fbp0 = nullptr;
+void* fbp1 = nullptr;
 
-static unsigned int __attribute__((aligned(16))) DisplayList[262144];
+static unsigned int __attribute__((aligned(16))) DisplayList[64 * 1024]; // 256 KB
+//static unsigned int __attribute__((aligned(16))) DisplayList[262144]; //1MB Display
 
-int exit_callback(int arg1, int arg2, void* common){
+
+static int exit_callback(int /*arg1*/, int /*arg2*/, void* /*common*/) {
     sceKernelExitGame();
     return 0;
 }
 
-int callbackThread(SceSize args, void* argp){
-    int cbid = sceKernelCreateCallback("Exit Callback", exit_callback, NULL);
-    sceKernelRegisterExitCallback(cbid);
-
+static int callbackThread(SceSize /*args*/, void* /*argp*/) {
+    int cbid = sceKernelCreateCallback("Exit Callback", exit_callback, nullptr);
+    if (cbid >= 0) {
+        sceKernelRegisterExitCallback(cbid);
+    }
     sceKernelSleepThreadCB();
     return 0;
 }
 
-void setupCallbacks(){
-    int thid = sceKernelCreateThread("update_thread", callbackThread, 0x11, 0xFA0, 0, NULL);
-    if (thid >= 0){
-        sceKernelStartThread(thid, 0, NULL);
+static void setupCallbacks() {
+    int thid = sceKernelCreateThread("exit_callback_thread",
+                                     callbackThread,
+                                     0x11,        // priority
+                                     0xFA0,       // stack size
+                                     0,           // attributes
+                                     nullptr);
+    if (thid >= 0) {
+        sceKernelStartThread(thid, 0, nullptr);
     }
 }
 
-void* fbp0 = NULL;
-void* fbp1 = NULL;
-void* renderTarget = NULL;
-void* zbp = NULL;
-
-void InitGU(){    
-    fbp0 = getStaticVramBuffer(BUF_WIDTH,SCR_HEIGHT,GU_PSM_8888);
-    fbp1 = getStaticVramBuffer(BUF_WIDTH,SCR_HEIGHT,GU_PSM_8888);
-    zbp = getStaticVramBuffer(BUF_WIDTH,SCR_HEIGHT,GU_PSM_4444);
-
-    renderTarget = getStaticVramBuffer(BUF_WIDTH,SCR_HEIGHT,GU_PSM_8888);
+void InitGU() {
+    // 16-bit color buffers for VRAM headroom
+    fbp0 = getStaticVramBuffer(BUF_WIDTH, SCR_HEIGHT, GU_PSM_5650);
+    fbp1 = getStaticVramBuffer(BUF_WIDTH, SCR_HEIGHT, GU_PSM_5650);
 
     sceGuInit();
-    sceGuStart(GU_DIRECT,DisplayList);
+    sceGuStart(GU_DIRECT, DisplayList);
+    sceGuDrawBuffer(GU_PSM_5650, fbp0, BUF_WIDTH);
+    sceGuDispBuffer(SCR_WIDTH, SCR_HEIGHT, fbp1, BUF_WIDTH);
 
-    sceGuDrawBuffer(GU_PSM_5650,fbp0,BUF_WIDTH);
-    sceGuDispBuffer(SCR_WIDTH,SCR_HEIGHT,fbp1,BUF_WIDTH);
-    sceGuDepthBuffer(zbp,BUF_WIDTH);
+    // 2D-friendly viewport
+    sceGuOffset(2048 - (SCR_WIDTH / 2), 2048 - (SCR_HEIGHT / 2));
+    sceGuViewport(2048, 2048, SCR_WIDTH, SCR_HEIGHT);
 
-    sceGuDepthRange(65535,0);
-    sceGuDepthMask(GU_FALSE);
+    // Clear only color (no depth buffer used)
+    sceGuClearColor(0);
+    sceGuClear(GU_COLOR_BUFFER_BIT);
 
-    sceGuOffset(2048 - (SCR_WIDTH / 2),2048 - (SCR_HEIGHT / 2));
-
-    sceGuViewport(2048,2048,SCR_WIDTH,SCR_HEIGHT);
-
-    sceGuClear(GU_COLOR_BUFFER_BIT | GU_DEPTH_BUFFER_BIT);
-
-    sceGuScissor(0,0,SCR_WIDTH,SCR_HEIGHT);
+    // Scissor to screen
+    sceGuScissor(0, 0, SCR_WIDTH, SCR_HEIGHT);
     sceGuEnable(GU_SCISSOR_TEST);
 
-    sceGuAlphaFunc(GU_GREATER,0,0xff);
-    sceGuEnable(GU_ALPHA_TEST);
-
-    sceGuDepthFunc(GU_GEQUAL);
-    sceGuEnable(GU_DEPTH_TEST);
-
-    sceGuFrontFace(GU_CW);
-
-    sceGuTexMode(GU_PSM_5650,0,0,0); 
-    sceGuTexFunc(GU_TFX_REPLACE,GU_TCC_RGBA);
-    sceGuTexFilter(GU_NEAREST,GU_NEAREST);
-
-    sceGuEnable(GU_CULL_FACE);
-    
-    sceGuEnable(GU_TEXTURE_2D);
-
-    sceGuEnable(GU_DITHER);
-
-    sceGuEnable(GU_CLIP_PLANES);
-    
-    sceGuEnable(GU_LIGHTING);
-    sceGuEnable(GU_LIGHT0);
-    sceGuEnable(GU_LIGHT1);
-    sceGuEnable(GU_LIGHT2);
-    sceGuEnable(GU_LIGHT3);
-    
-    sceGuEnable(GU_FOG);
-
+    // Blending and alpha test
     sceGuEnable(GU_BLEND);
-    sceGuBlendFunc(GU_ADD,GU_SRC_ALPHA,GU_ONE_MINUS_SRC_ALPHA,0,0);
+    sceGuBlendFunc(GU_ADD, GU_SRC_ALPHA, GU_ONE_MINUS_SRC_ALPHA, 0, 0);
+    sceGuEnable(GU_ALPHA_TEST);
+    sceGuAlphaFunc(GU_GREATER, 0, 0xff);
 
-    sceGuShadeModel(GU_SMOOTH); 
+    // 2D: textures yes, no lighting/fog/depth/culling/dither
+    sceGuEnable(GU_TEXTURE_2D);
+    sceGuTexFilter(GU_NEAREST, GU_NEAREST); // keep crisp; set LINEAR if you prefer softening
+
+    sceGuDisable(GU_LIGHTING);
+    sceGuDisable(GU_LIGHT0);
+    sceGuDisable(GU_LIGHT1);
+    sceGuDisable(GU_LIGHT2);
+    sceGuDisable(GU_LIGHT3);
+    sceGuDisable(GU_FOG);
+    sceGuDisable(GU_DEPTH_TEST);
+    sceGuDisable(GU_CLIP_PLANES);
+    sceGuDisable(GU_CULL_FACE);
+    sceGuDisable(GU_DITHER);
 
     sceGuFinish();
+    sceGuSync(GU_SYNC_FINISH, GU_SYNC_WHAT_DONE);
 
-    sceGuSync(0,0);
-
-    sceDisplayWaitVblankStart();
-
+    sceDisplayWaitVblankStartCB();
     sceGuDisplay(GU_TRUE);
 }
-
 void initEngine(){
     setupCallbacks();
-    pspDebugScreenInit();
+    //pspDebugScreenInit();
 
     sceCtrlSetSamplingCycle(0);
     sceCtrlSetSamplingMode(PSP_CTRL_MODE_ANALOG);
 
     InitGU();
-
+    
     //oslInit();
     VirtualFileInit();
     oslInitAudio();
@@ -202,7 +185,7 @@ void resetMain(){
     }
 }
 
-float cursorMoveTime = 5;
+int cursorMoveTime = 5;
 
 void handleMenuState(SceCtrlData ctrlData){
     menu::render::renderBackground();
@@ -215,29 +198,13 @@ void handleMenuState(SceCtrlData ctrlData){
     menu::n_static::renderStatic();
     menu::n_static::animateStatic();
 
-    if (cursorMoveTime <= 0){
-        switch (ctrlData.Buttons){
-            case PSP_CTRL_CROSS:
-                menu::menuCursor::select();
-                cursorMoveTime = 7;
-                break;
-            case PSP_CTRL_UP:
-                menu::menuCursor::cursorPos -= 1;
-                menu::menuCursor::moveCursor();
-                cursorMoveTime = 7;
-                break;
-            case PSP_CTRL_DOWN:
-                menu::menuCursor::cursorPos += 1;
-                menu::menuCursor::moveCursor();
-                cursorMoveTime = 7;
-                break;
-            default:
-                break;
-        }
-    }
-    else{
-        cursorMoveTime -= 1;
-    }
+if (cursorMoveTime <= 0) {
+    if (ctrlData.Buttons & PSP_CTRL_CROSS) { menu::menuCursor::select(); cursorMoveTime = 7; }
+    if (ctrlData.Buttons & PSP_CTRL_UP)    { menu::menuCursor::cursorPos--; menu::menuCursor::moveCursor(); cursorMoveTime = 7; }
+    if (ctrlData.Buttons & PSP_CTRL_DOWN)  { menu::menuCursor::cursorPos++; menu::menuCursor::moveCursor(); cursorMoveTime = 7; }
+} else {
+    cursorMoveTime -= 1;
+}
 
     resetMain();
 }
@@ -269,6 +236,10 @@ void handleOfficeState(SceCtrlData ctrlData) {
         office::render::renderDoors();
     }
 
+    // Run AI logic
+    animatronic::runAiLoop();
+    animatronic::forceAnimatronicAiReset();
+
     // Render camera flipping and UI
     camera::render::renderCamFlip();
     if (camera::isUsing && animatronic::reloaded && sprite::UI::office::loaded &&
@@ -276,9 +247,6 @@ void handleOfficeState(SceCtrlData ctrlData) {
         camera::render::renderCamera();
     }
 
-    // Run AI logic
-    animatronic::runAiLoop();
-    animatronic::forceAnimatronicAiReset();
 
     // Render UI and static effects
     camera::render::renderUi();
@@ -525,52 +493,51 @@ void handleState(SceCtrlData ctrlData) {
 }
 
 
-auto main() -> int{
+auto main() -> int {
+    // Optional: boost clock if needed
+    // scePowerSetClockFrequency(333, 333, 166);
 
-    SceCtrlData ctrlData;
-
+    SceCtrlData ctrlData{};
     initEngine();
     initGame();
 
+    // For better input handling
+    u32 padCurr = 0;
 
-    while(true){
-
+    while (true) {
+        // Non-blocking read is fine too: sceCtrlPeekBufferPositive
         sceCtrlReadBufferPositive(&ctrlData, 1);
+        padCurr = ctrlData.Buttons;
 
-        //running = isRunning();
+        sceGuStart(GU_DIRECT, DisplayList);
 
-        sceGuStart(GU_DIRECT,DisplayList);
+        // Clear only color (depth not used)
+        sceGuClear(GU_COLOR_BUFFER_BIT);
 
-        // clear screen
+        // If you really need GUM, set orthographic once and avoid per-frame perspective for 2D:
+        // sceGumMatrixMode(GU_PROJECTION);
+        // sceGumLoadIdentity();
+        // sceGumOrtho(0, SCR_WIDTH, SCR_HEIGHT, 0, -1.0f, 1.0f);
+        // sceGumMatrixMode(GU_VIEW);
+        // sceGumLoadIdentity();
 
-        sceGuClearColor(0x000000);
-        sceGuClearDepth(0);
-        sceGuClear(GU_COLOR_BUFFER_BIT | GU_DEPTH_BUFFER_BIT);
+        handleState(ctrlData); // your draw+update
 
-        // setup aspect ratio
-
-        sceGumMatrixMode(GU_PROJECTION);
-        sceGumLoadIdentity();
-        sceGumPerspective(70.0f,16.0f/9.0f,0.5f,1000.0f);
-            
-            // setup camera
-        sceGumMatrixMode(GU_VIEW);
-        {
-            ScePspFVector3 pos = {0, 0, 0};
-            ScePspFVector3 rot = { 0, 0, 0 };
-
-            sceGumLoadIdentity();
-            sceGumTranslate(&pos);
-            sceGumRotateXYZ(&rot);
-        }
-
-        handleState(ctrlData);
-        
-        sceDisplayWaitVblankStart();
-            
         sceGuFinish();
-        sceGuSync(0,0);
+        sceGuSync(GU_SYNC_FINISH, GU_SYNC_WHAT_DONE);
 
+        // Cap to 60 Hz; wait AFTER finishing the list
+        sceDisplayWaitVblankStartCB();
+
+        // Present
         sceGuSwapBuffers();
+
+        // Safe place for deferred load/unload (GPU is done with textures)
+        powerout::postFrame();
+        ending::postFrame();
+        dead::postFrame();
+        sixam::postFrame();
+        nightinfo::postFrame(); 
+        sprite::UI::office::postFrame(); 
     }
 }

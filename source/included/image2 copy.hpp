@@ -58,9 +58,7 @@ namespace image{
 }
 
 namespace sprite{
-    namespace UI { namespace office {
-        void postFrame();
-    }}
+
     namespace menu{
         extern Image *star;
 

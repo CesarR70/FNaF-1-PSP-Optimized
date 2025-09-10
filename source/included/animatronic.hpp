@@ -8,6 +8,12 @@
 #include "state.hpp"
 #include "jumpscare.hpp"
 
+// Optional: set to 1 if you must match std::rand() semantics/seeding.
+// Default (0) uses a faster xorshift RNG internally for performance.
+#ifndef ANIMATRONIC_USE_STD_RAND
+#define ANIMATRONIC_USE_STD_RAND 0
+#endif
+
 namespace animatronic {
     extern bool isMoving;
     extern bool reloaded;
@@ -20,11 +26,12 @@ namespace animatronic {
     extern bool locked;
 
     extern int ThreadIdR;
+    extern SceUID ReloadSemaphore;   // persistent reload semaphore handle
     extern int PspThreadStatus;
 
     extern bool unloaded;
 
-    extern float waitBeforeForceReset;
+    extern int waitBeforeForceReset;
 
     void reset();
     void forceAnimatronicAiReset();
@@ -40,7 +47,7 @@ namespace animatronic {
         extern int levelTenths;
         extern float totalLevel;
         extern float position;
-        extern float delay;
+        extern int delay;
         extern bool atDoor;
 
         void wait();
@@ -62,7 +69,7 @@ namespace animatronic {
         extern int levelTenths;
         extern float totalLevel;
         extern float position;
-        extern float delay;
+        extern int delay;
         extern bool atDoor;
         extern bool inOtherRoom;
 
@@ -87,7 +94,7 @@ namespace animatronic {
         extern int levelTenths;
         extern float totalLevel;
         extern float position;
-        extern float delay;
+        extern int delay;
         extern bool atDoor;
         extern bool inOtherRoom;
 
@@ -112,7 +119,7 @@ namespace animatronic {
         extern int levelTenths;
         extern float totalLevel;
         extern float position;
-        extern float delay;
+        extern int delay;
         extern bool atDoor;
 
         void wait();
@@ -127,6 +134,8 @@ namespace animatronic {
         void blockAttack();
         void resetToIdle();
         void reloadPosition();
+
+        // Returns the global animatronic::isMoving flag.
         bool isMoving();
     }
 
