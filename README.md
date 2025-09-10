@@ -26,6 +26,7 @@ Before building, make sure you have:
    git clone https://github.com/<your-username>/FNaF-1-PSP.git
    cd FNaF-1-PSP
  2. Make sure your PSP toolchain is set in your PATH.
- 3. Run make to build the game:  
-make
+ 3. Run make to build the game:
+   ```bash
+   make
 
