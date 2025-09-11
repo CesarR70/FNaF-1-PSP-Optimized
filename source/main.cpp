@@ -502,12 +502,10 @@ auto main() -> int {
     initGame();
 
     // For better input handling
-    u32 padCurr = 0;
 
     while (true) {
         // Non-blocking read is fine too: sceCtrlPeekBufferPositive
         sceCtrlReadBufferPositive(&ctrlData, 1);
-        padCurr = ctrlData.Buttons;
 
         sceGuStart(GU_DIRECT, DisplayList);
 
