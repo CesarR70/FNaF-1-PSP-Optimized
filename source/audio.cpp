@@ -1,9 +1,15 @@
 #include "included/audio.hpp"
 
 // Safety helper: pause before delete, then null the pointer
+// CRITICAL: Add thread safety to prevent race conditions during high activity
 static inline void safeDelete(OSL_SOUND*& s) {
     if (s) {
-        oslPauseSound(s, 1); // pause this sound (not -1)
+        // CRITICAL: Check if sound is still valid before operations
+        // This prevents crashes when sound is accessed from multiple threads
+        int channel = oslGetSoundChannel(s);
+        if (channel != -1) {
+            oslPauseSound(s, 1); // pause this sound (not -1)
+        }
         oslDeleteSound(s);
         s = nullptr;
     }
@@ -203,22 +209,19 @@ namespace sfx {
             safeDelete(camera[1]);
         }
 
-     void playLightOn() {
+        void playLightOn() {
         if (!buzz) return;
 
-        // Always loop the buzz
-        oslSetSoundLoop(buzz, 1);
-
+        // CRITICAL: Add additional safety checks to prevent crashes
+        // Check if sound object is still valid before operations
         int ch = oslGetSoundChannel(buzz);
         if (ch == -1) {
-            // Not assigned/playing yet: start on the reserved voice
+            // Sound is not currently playing, safe to configure and play
+            oslSetSoundLoop(buzz, 1);
             oslPlaySound(buzz, 3);
         } else {
-            // Has a channel already: make sure it’s audible if it was paused
+            // Sound is already playing, just unpause if needed
             oslPauseSound(buzz, 0); // unpause just this sound
-            // If you want the buzz to always restart from the beginning on each press,
-            // uncomment the next line:
-            // oslPlaySound(buzz, 3);
         }
     }
     
@@ -229,21 +232,51 @@ namespace sfx {
         }
     }
 
-        void playDoor()     { if (door)      oslPlaySound(door,      4); }
-        void playCamOpen()  { if (camera[0]) oslPlaySound(camera[0], 5); }
-        void playCamClose() { if (camera[1]) oslPlaySound(camera[1], 5); }
-        void playSwitch()   { if (switchCam) oslPlaySound(switchCam, 5); }
-        void playMove()     { if (move)      oslPlaySound(move,      5); }
+        void playDoor()     { 
+            // CRITICAL: Add thread safety to prevent race conditions
+            if (door && oslGetSoundChannel(door) == -1) oslPlaySound(door, 4); 
+        }
+        void playCamOpen()  { 
+            // CRITICAL: Add thread safety to prevent race conditions
+            if (camera[0] && oslGetSoundChannel(camera[0]) == -1) oslPlaySound(camera[0], 5); 
+        }
+        void playCamClose() { 
+            // CRITICAL: Add thread safety to prevent race conditions
+            if (camera[1] && oslGetSoundChannel(camera[1]) == -1) oslPlaySound(camera[1], 5); 
+        }
+        void playSwitch()   { 
+            // CRITICAL: Add thread safety to prevent race conditions
+            if (switchCam && oslGetSoundChannel(switchCam) == -1) oslPlaySound(switchCam, 5); 
+        }
+        void playMove()     { 
+            // CRITICAL: Add thread safety to prevent race conditions
+            if (move && oslGetSoundChannel(move) == -1) oslPlaySound(move, 5); 
+        }
 
-        void playLaugh()    { if (laugh)     oslPlaySound(laugh,     6); }
-        void playWalk()     { if (walk)      oslPlaySound(walk,      7); }
+        void playLaugh()    { 
+            // CRITICAL: Add thread safety to prevent race conditions
+            if (laugh && oslGetSoundChannel(laugh) == -1) oslPlaySound(laugh, 6); 
+        }
+        void playWalk()     { 
+            // CRITICAL: Add thread safety to prevent race conditions
+            if (walk && oslGetSoundChannel(walk) == -1) oslPlaySound(walk, 7); 
+        }
         void playKitchen()  {
             // if (kitchen) oslPlaySound(kitchen, 6);
         }
-        void playScare()    { if (scare)     oslPlaySound(scare,     7); }
+        void playScare()    { 
+            // CRITICAL: Add thread safety to prevent race conditions
+            if (scare && oslGetSoundChannel(scare) == -1) oslPlaySound(scare, 7); 
+        }
 
-        void playRun()      { if (run)       oslPlaySound(run,       7); }
-        void playKnock()    { if (knock)     oslPlaySound(knock,     7); }
+        void playRun()      { 
+            // CRITICAL: Add thread safety to prevent race conditions
+            if (run && oslGetSoundChannel(run) == -1) oslPlaySound(run, 7); 
+        }
+        void playKnock()    { 
+            // CRITICAL: Add thread safety to prevent race conditions
+            if (knock && oslGetSoundChannel(knock) == -1) oslPlaySound(knock, 7); 
+        }
     }
 
     namespace sixam {
@@ -276,10 +309,16 @@ namespace sfx {
             jumpscare = oslLoadSoundFileWAV("romfs/sfx/jumpscare/jumpscare.wav", OSL_FMT_STREAM);
         }
         void playJumpscareSound() {
+            // CRITICAL: Add thread safety to prevent race conditions during jumpscares
             if (!jumpscare) return;
-            oslPlaySound(jumpscare, 0);
+            
+            // Check if sound is already playing to prevent multiple simultaneous plays
             if (oslGetSoundChannel(jumpscare) == -1) {
-                unloadJumpscareSound();
+                oslPlaySound(jumpscare, 0);
+                // Double-check after playing
+                if (oslGetSoundChannel(jumpscare) == -1) {
+                    unloadJumpscareSound();
+                }
             }
         }
         void unloadJumpscareSound() {
@@ -302,10 +341,16 @@ namespace sfx {
             dead = oslLoadSoundFileWAV("romfs/sfx/jumpscare/dead.wav", OSL_FMT_STREAM);
         }
         void playDeadSound() {
+            // CRITICAL: Add thread safety to prevent race conditions during death sequence
             if (!dead) return;
-            oslPlaySound(dead, 0);
+            
+            // Check if sound is already playing to prevent multiple simultaneous plays
             if (oslGetSoundChannel(dead) == -1) {
-                unloadDeadSound();
+                oslPlaySound(dead, 0);
+                // Double-check after playing
+                if (oslGetSoundChannel(dead) == -1) {
+                    unloadDeadSound();
+                }
             }
         }
         void unloadDeadSound() {

@@ -167,9 +167,11 @@ namespace animatronic {
             sprite::UI::office::unloadCams();
             sprite::UI::office::loadCams();
 
-            if (usingCams) {
-                sfx::office::playMove();
-            }
+            // CRITICAL: Don't play audio from background thread to prevent race conditions
+            // Audio should only be played from the main thread
+            // if (usingCams) {
+            //     sfx::office::playMove();
+            // }
 
             reloaded = true;
             isMoving = false;
@@ -205,7 +207,9 @@ namespace animatronic {
     }
 
     void setReload() {
-        if (LIKELY(!jumpscaring)) {
+        // CRITICAL: Add additional safety checks to prevent crashes during high activity
+        // Only queue reload if not already in progress and not jumpscaring
+        if (LIKELY(!jumpscaring && !isMoving)) {
             queueReloadOnce();
         }
     }
@@ -223,6 +227,11 @@ namespace animatronic {
         chika::wait();
         if (save::whichNight > 1) {
             foxy::wait();
+        }
+        
+        // CRITICAL: Play move sound from main thread only to prevent race conditions
+        if (usingCams && isMoving) {
+            sfx::office::playMove();
         }
     }
 

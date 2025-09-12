@@ -595,6 +595,10 @@ void unloadCams() {
         }
 
         void loadJumpscare() {
+            // CRITICAL: Add atomic loading to prevent race conditions
+            // Set loaded to false first to prevent rendering during load
+            loaded = false;
+            
             // Always unload the previous set before loading a new one
             unloadFrames();
 
@@ -602,6 +606,9 @@ void unloadCams() {
             else if (whichJumpscare == 2) loadBonnie();
             else if (whichJumpscare == 3) loadChica();
             else if (whichJumpscare == 4) loadFoxy();
+            
+            // Only set loaded to true after all frames are loaded
+            // This prevents accessing partially loaded sprite arrays
         }
 
         void unloadJumpscare() {

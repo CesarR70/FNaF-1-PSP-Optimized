@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <malloc.h>  // For memalign function
 
 #include <png.h>
 
@@ -123,7 +124,7 @@ Image* loadPng(const char* filename)
 	if (color_type == PNG_COLOR_TYPE_GRAY) png_set_gray_to_rgb(png_ptr);
 	if (png_get_valid(png_ptr, info_ptr, PNG_INFO_tRNS)) png_set_tRNS_to_alpha(png_ptr);
 	png_set_filler(png_ptr, 0xff, PNG_FILLER_AFTER);
-	image->data = (Color*) malloc( image->textureWidth * image->imageHeight * sizeof(Color));
+	image->data = (Color*) memalign(16, image->textureWidth * image->imageHeight * sizeof(Color));
 
 	if (!image->data) {
 		free(image);
@@ -235,7 +236,7 @@ ImageMip* loadPngMip(const char* filename)
 	if (color_type == PNG_COLOR_TYPE_GRAY) png_set_gray_to_rgb(png_ptr);
 	if (png_get_valid(png_ptr, info_ptr, PNG_INFO_tRNS)) png_set_tRNS_to_alpha(png_ptr);
 	png_set_filler(png_ptr, 0xff, PNG_FILLER_AFTER);
-	image->data = (Color*) malloc( image->textureWidth * image->imageHeight * sizeof(Color));
+	image->data = (Color*) memalign(16, image->textureWidth * image->imageHeight * sizeof(Color));
 	image->data1 = (Color*) malloc( image->textureWidth1 * image->imageHeight1 * sizeof(Color));
 	image->data2 = (Color*) malloc( image->textureWidth2 * image->imageHeight2 * sizeof(Color));
 	image->data3 = (Color*) malloc( image->textureWidth3 * image->imageHeight3 * sizeof(Color));
@@ -531,8 +532,7 @@ void freeVRam(void *address,int length)
 		availableVRam+=b->length;
 	}
 	printf("post-free vram: "); reportVRam();
-	free(b);
-	free(curr);
+	// Note: 'b' and 'curr' are already freed above in the merge logic
 }
 
 void swizzleFast(Image *source)
@@ -546,7 +546,8 @@ void swizzleFast(Image *source)
 		printf("texture to vram\n");
 		source->vram=1;
 		int i;
-		for(i=0;i<64;i++) {
+		// Safety check - ensure we don't exceed array bounds
+		for(i=0;i<64 && i<sizeof(vimage)/sizeof(vimage[0]);i++) {
 			if(vimage[i]==0) {
 				vimage[i]=source;
 				printf("^^^Image '%s' to vram\n",source->filename);
@@ -556,7 +557,7 @@ void swizzleFast(Image *source)
 	} else {
 		out=(unsigned long *)malloc(width*height);
 		if(!out) {
-			printf("^^^couldn't do it!\n");
+			printf("^^^couldn't allocate memory for swizzling!\n");
 			return;
 		}	// couldn't do it!
 		imageRamAlloc+=width*height;
@@ -620,7 +621,7 @@ void swizzleFast(Image *source)
 	} else {
 		out=(unsigned long *)malloc(width*height);
 		if(!out) {
-			printf("^^^couldn't do it!\n");
+			printf("^^^couldn't allocate memory for swizzling!\n");
 			return;
 		}	// couldn't do it!
 		imageRamAlloc+=width*height;

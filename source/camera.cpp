@@ -27,6 +27,9 @@ int reticleY = 115;
 
 std::string buttonState = "up";
 
+// Note: Camera switching throttling removed - relying on existing kCamReloadBudget system
+// in image2.cpp plus double-check safety in render functions
+
 static inline int clamp(int v, int lo, int hi) {
     return (v < lo) ? lo : (v > hi ? hi : v);
 }
@@ -62,13 +65,20 @@ namespace render {
     }
 
     void renderCamera() {
-        // Extra guards so we don’t try to draw while cams are being (re)loaded
+        // Extra guards so we don't try to draw while cams are being (re)loaded
         if (!isUsing || closing) return;
         if (!sprite::UI::office::loaded || !animatronic::reloaded) return;
+        
+        // CRITICAL: Additional safety check to prevent crashes during high activity
+        // Don't render if animatronics are moving (reloading sprites)
+        if (animatronic::isMoving) return;
 
         int cam = clamp(whichCamera, 0, kCamCount - 1);
         auto* tex = sprite::UI::office::cams[cam];
-        if (tex) {
+        
+        // CRITICAL: Double-check the texture is still valid after array access
+        // This prevents crashes during rapid camera switching + animatronic movement
+        if (tex && tex->data) {
             drawSpriteAlpha(0, 0, 480, 272, tex, 0, 0, 0);
         }
     }
@@ -88,14 +98,18 @@ namespace render {
 
         int cam = clamp(whichCamera, 0, kCamCount - 1);
         auto* name = sprite::UI::office::camNames[cam];
-        if (name) {
+        
+        // CRITICAL: Double-check the texture is still valid after array access
+        if (name && name->data) {
             drawSpriteAlpha(0, 0, 121, 13, name, 310, 95, 0);
         }
 
         for (int i = 0; i < kCamCount; ++i) {
             auto* tex = sprite::UI::office::camButtons[i];
-            if (!tex) continue;
-            drawSpriteAlpha(0, 0, 20, 15, tex, kButtonPosX[i], kButtonPosY[i], 0);
+            // CRITICAL: Double-check the texture is still valid after array access
+            if (tex && tex->data) {
+                drawSpriteAlpha(0, 0, 20, 15, tex, kButtonPosX[i], kButtonPosY[i], 0);
+            }
         }
 
         if (sprite::UI::office::reticle) {
@@ -194,6 +208,11 @@ namespace system {
 
     void left() {
         if (!isUsing) return;
+        
+        // PERFORMANCE: Cache previous camera to avoid unnecessary operations
+        static int prevCamera = -1;
+        if (whichCamera == prevCamera) return; // Skip if already at target
+        
         switch (whichCamera) {
             case 1: case 2: whichCamera = 8;  break;
             case 3: case 4: whichCamera = 5;  break;
@@ -203,12 +222,18 @@ namespace system {
             default: break;
         }
         whichCamera = clamp(whichCamera, 0, kCamCount - 1);
+        prevCamera = whichCamera;
         sfx::office::playSwitch();
         setReticle();
     }
 
     void right() {
         if (!isUsing) return;
+        
+        // PERFORMANCE: Cache previous camera to avoid unnecessary operations
+        static int prevCamera = -1;
+        if (whichCamera == prevCamera) return; // Skip if already at target
+        
         switch (whichCamera) {
             case 1: case 2: whichCamera = 10; break;
             case 3: case 4: whichCamera = 6;  break;
@@ -218,12 +243,14 @@ namespace system {
             default: break;
         }
         whichCamera = clamp(whichCamera, 0, kCamCount - 1);
+        prevCamera = whichCamera;
         sfx::office::playSwitch();
         setReticle();
     }
 
     void up() {
         if (!isUsing) return;
+        
         switch (whichCamera) {
             case 1: whichCamera = 0;  break;
             case 2: whichCamera = 1;  break;
@@ -240,6 +267,7 @@ namespace system {
 
     void down() {
         if (!isUsing) return;
+        
         switch (whichCamera) {
             case 0: whichCamera = 1; break;
             case 1: whichCamera = 2; break;

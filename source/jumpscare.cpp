@@ -43,11 +43,15 @@ namespace render {
         if (idx < 0) idx = 0;
         if (idx >= kFrameCount) idx = kFrameCount - 1;
 
-        drawSpriteAlpha(
-            0, 0, 480, 272,
-            sprite::n_jumpscare::jumpscareAnim[idx],
-            0, 0, 0
-        );
+        // CRITICAL: Add null check to prevent crashes during high activity
+        // This prevents accessing freed or uninitialized sprite data
+        if (sprite::n_jumpscare::jumpscareAnim[idx]) {
+            drawSpriteAlpha(
+                0, 0, 480, 272,
+                sprite::n_jumpscare::jumpscareAnim[idx],
+                0, 0, 0
+            );
+        }
     }
 }
 
