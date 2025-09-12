@@ -34,10 +34,10 @@ BUILD_PRX = 1
 LIBDIR = ./ include lib $(PSPSDK)/../lib
 
 LIBS += -lpng -lz -ljpeg -lpspgum_vfpu -lpspgu -lpspgum -lpspvfpu -lpspvram \
-	-losl -lpspaudiolib -lpspaudio -lpspaudiocodec -lpspmp3 -lstdc++ -lm
+	-losl -lpspaudiolib -lpspaudio -lpspaudiocodec -lpspmp3 -lpsppower -lstdc++ -lm
 
 EXTRA_TARGETS = EBOOT.PBP
-PSP_EBOOT_TITLE = FNaF 1 PSP v1.5.1
+PSP_EBOOT_TITLE = FNaF 1 PSP v1.5.3
 PSP_EBOOT_ICON = ICON0.PNG
 PSP_EBOOT_PIC1 = PIC1.PNG
 
