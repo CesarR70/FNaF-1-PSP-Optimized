@@ -163,9 +163,10 @@ namespace animatronic {
             reloaded = false;
             isMoving = true;
 
-            // Heavy work off the main thread
-            sprite::UI::office::unloadCams();
-            sprite::UI::office::loadCams();
+            // Smart incremental update: only update cameras that have changed
+            // This keeps all cameras visible while updating only what's needed
+            // Replaces the old system that unloaded all cameras and caused black screens
+            sprite::UI::office::updateChangedCams();
 
             // CRITICAL: Don't play audio from background thread to prevent race conditions
             // Audio should only be played from the main thread

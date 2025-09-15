@@ -381,6 +381,50 @@ void loadCams() {
     loaded = true;
 }
 
+void loadAllCams() {
+    // Load all cameras at once for initial setup
+    // This ensures all cameras are visible from the start of early levels
+    if (!loaded) { for (int i = 0; i < 11; ++i) lastPath[i].clear(); }
+
+    for (int i = 0; i < 11; ++i) {
+        const std::string newPath = buildCamPath(i);
+        
+        if (!(lastPath[i] == newPath && cams[i])) {
+            Image* newImg = loadPng(newPath.c_str());
+            if (newImg) {
+                queueRetire(cams[i]);
+                cams[i] = newImg;
+                lastPath[i] = newPath;
+            }
+        }
+    }
+    loaded = true;
+}
+
+void updateChangedCams() {
+    // Smart incremental update: only reload cameras that have actually changed
+    // This keeps all cameras visible while updating only what's needed
+    if (!loaded) return; // Safety check
+    
+    int updated = 0;
+    const int maxUpdates = kCamReloadBudget; // Use same budget for consistency
+    
+    for (int i = 0; i < 11 && updated < maxUpdates; ++i) {
+        const std::string newPath = buildCamPath(i);
+        
+        // Only update if the path has changed
+        if (lastPath[i] != newPath) {
+            Image* newImg = loadPng(newPath.c_str());
+            if (newImg) {
+                queueRetire(cams[i]);
+                cams[i] = newImg;
+                lastPath[i] = newPath;
+                updated++;
+            }
+        }
+    }
+}
+
 void unloadCams() {
     for (int i = 0; i < 11; ++i) {
         queueRetire(cams[i]);

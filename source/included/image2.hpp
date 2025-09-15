@@ -137,6 +137,8 @@ namespace sprite{
             //void initializeCamMappings();
 
             void loadCams();
+            void loadAllCams();
+            void updateChangedCams();
             void unloadCams();
 
             /*

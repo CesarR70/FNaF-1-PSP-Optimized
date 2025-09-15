@@ -51,8 +51,8 @@ namespace nightinfo {
     namespace next {
 
         // One tiny task per step to avoid frame spikes.
-        // Note: sprite::UI::office::loadCams() still loads several PNGs at once.
-        // If you see a hitch on that step, we can split it per-camera later.
+        // Note: sprite::UI::office::loadAllCams() loads all camera images at once for initial setup.
+        // This ensures all cameras are visible from the start of early levels.
         static void tickLoader() {
             switch (loadStep) {
                 case 0:
@@ -72,7 +72,7 @@ namespace nightinfo {
                 case 6: sprite::UI::office::loadPowerInfo();loadStep++; break;
                 case 7: sprite::UI::office::loadTimeInfo(); loadStep++; break;
 
-                case 8: sprite::UI::office::loadCams();     loadStep++; break;
+                case 8: sprite::UI::office::loadAllCams();  loadStep++; break;
                 case 9: sprite::UI::office::loadCamUi();    loadStep++; break;
 
                 case 10:
