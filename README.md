@@ -2,7 +2,7 @@
 
 This repository contains the **source code** for the *Five Nights at Freddy’s PSP port*.  
 Unlike the release build, this version is **not playable out of the box** and must be compiled using a PSP toolchain/SDK.  
-
+- For a precompiled (ready to play) version of this port, please see https://github.com/CesarR70/FNaF-1-PSP-Optimized_precompiled/releases
 ---
 
 ## 📌 Overview
