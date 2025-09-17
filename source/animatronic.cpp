@@ -168,11 +168,6 @@ namespace animatronic {
             // Replaces the old system that unloaded all cameras and caused black screens
             sprite::UI::office::updateChangedCams();
 
-            // CRITICAL: Don't play audio from background thread to prevent race conditions
-            // Audio should only be played from the main thread
-            // if (usingCams) {
-            //     sfx::office::playMove();
-            // }
 
             reloaded = true;
             isMoving = false;
@@ -208,10 +203,27 @@ namespace animatronic {
     }
 
     void setReload() {
-        // CRITICAL: Add additional safety checks to prevent crashes during high activity
+        // OPTIMIZED: Smart reload batching to reduce camera update overhead
         // Only queue reload if not already in progress and not jumpscaring
         if (LIKELY(!jumpscaring && !isMoving)) {
             queueReloadOnce();
+        }
+    }
+    
+    // OPTIMIZED: Batch reload system for multiple animatronic movements
+    static int pendingReloads = 0;
+    static int reloadBatchTimer = 0;
+    
+    void setReloadBatched() {
+        // Batch multiple reload requests to reduce overhead
+        pendingReloads++;
+        if (pendingReloads >= 3 || reloadBatchTimer <= 0) {
+            // Process batch immediately if 3+ pending or timer expired
+            setReload();
+            pendingReloads = 0;
+            reloadBatchTimer = 2; // 2-frame cooldown
+        } else {
+            reloadBatchTimer--;
         }
     }
 
@@ -219,20 +231,60 @@ namespace animatronic {
     // Game flow
     // ==============================
     void runAiLoop() {
+        // OPTIMIZED: Batch AI processing with early exit conditions
+        // Process all animatronics together to reduce function call overhead
+        
+        // Freddy AI - always active
         freddy::wait();
         if (save::whichNight == 2) {
             freddy::incrementDifficulty();
         }
 
+        // Bonnie AI - always active
         bonnie::wait();
+        
+        // Chica AI - always active
         chika::wait();
+        
+        // Foxy AI - only on nights 2+ (early exit for Night 1)
         if (save::whichNight > 1) {
             foxy::wait();
         }
         
         // CRITICAL: Play move sound from main thread only to prevent race conditions
-        if (usingCams && isMoving) {
+        // Exclude Foxy from move.wav since he uses run.wav during attacks
+        if (usingCams && isMoving && !foxy::atDoor) {
             sfx::office::playMove();
+        }
+        
+        // Foxy attack timer - runs every frame for accurate timing
+        static int foxyAttackTimer = 0;
+        static bool foxyAttackStarted = false;
+        
+        if (foxy::atDoor && !jumpscaring) {
+            if (!foxyAttackStarted) {
+                // Foxy just reached the door - play run.wav immediately and start timer
+                foxyAttackStarted = true;
+                foxyAttackTimer = 0;
+                sfx::office::playRun(); // Play run.wav immediately as warning
+            }
+            
+            foxyAttackTimer++;
+            
+            if (foxyAttackTimer >= 60) { // ~1 second at 60 FPS
+                // After 60 second, check if player blocked the attack
+                if (!leftClosed) {
+                    foxy::triggerJumpscare();
+                } else {
+                    foxy::blockAttack();
+                }
+                foxyAttackTimer = 0;
+                foxyAttackStarted = false;
+            }
+        } else {
+            // Reset timer when not at door
+            foxyAttackTimer = 0;
+            foxyAttackStarted = false;
         }
     }
 
@@ -276,7 +328,7 @@ namespace animatronic {
 
         inline void reloadPosition() {
             sprite::UI::office::freddyPosition = position;
-            setReload();
+            setReloadBatched();
         }
 
         inline void triggerJumpscare() {
@@ -334,7 +386,9 @@ namespace animatronic {
                 --delay;
             } else {
                 generateRandom();
-                delay = 650;
+                // OPTIMIZED: Dynamic delay based on night difficulty
+                // Higher intensity nights = faster AI decisions for more tension
+                delay = (save::whichNight >= 5) ? 520 : 650; // 20% faster on Night 5+
             }
         }
 
@@ -362,7 +416,7 @@ namespace animatronic {
 
         inline void reloadPosition() {
             sprite::UI::office::bonniePosition = position;
-            setReload();
+            setReloadBatched();
         }
 
         inline void triggerJumpscare() {
@@ -440,7 +494,9 @@ namespace animatronic {
                 --delay;
             } else {
                 generateRandom();
-                delay = 389;
+                // OPTIMIZED: Dynamic delay based on night difficulty
+                // Bonnie is most aggressive, so scale his speed appropriately
+                delay = (save::whichNight >= 5) ? 311 : 389; // 20% faster on Night 5+
             }
         }
 
@@ -464,7 +520,7 @@ namespace animatronic {
 
         inline void reloadPosition() {
             sprite::UI::office::chicaPosition = position;
-            setReload();
+            setReloadBatched();
         }
 
         inline void triggerJumpscare() {
@@ -546,7 +602,9 @@ namespace animatronic {
             } else {
                 inOtherRoom = false;
                 generateRandom();
-                delay = 432;
+                // OPTIMIZED: Dynamic delay based on night difficulty
+                // Chica is very aggressive on Night 6, so scale her speed
+                delay = (save::whichNight >= 5) ? 346 : 432; // 20% faster on Night 5+
             }
         }
 
@@ -569,7 +627,7 @@ namespace animatronic {
 
         inline void reloadPosition() {
             sprite::UI::office::foxyPosition = position;
-            setReload();
+            setReloadBatched(); // Use batched reload for better performance
         }
 
         inline void triggerJumpscare() {
@@ -599,14 +657,7 @@ namespace animatronic {
             if (!atDoor) {
                 atDoor = true;
             }
-
-            if (atDoor && !jumpscaring) {
-                if (!leftClosed) {
-                    triggerJumpscare();
-                } else {
-                    blockAttack();
-                }
-            }
+            // Timer logic moved to runAiLoop() for accurate frame-based timing
         }
 
         void handleMovement() {
@@ -640,7 +691,9 @@ namespace animatronic {
                 --delay;
             } else {
                 generateRandomEvent();
-                delay = 460;
+                // OPTIMIZED: Dynamic delay based on night difficulty
+                // Foxy needs to be more aggressive on higher nights
+                delay = (save::whichNight >= 5) ? 368 : 460; // 20% faster on Night 5+
             }
         }
 

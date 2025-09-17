@@ -28,6 +28,8 @@ namespace ambience{
         void loadAmbience();
         void playAmbience();
         void unloadAmbience();
+        void preloadAmbience();
+        void preloadEndingMusic();
 
 
         extern OSL_SOUND* fan;
@@ -45,6 +47,7 @@ namespace call{
     void loadPhoneCalls();
     void playPhoneCalls();
     void unloadPhoneCalls();
+    void loadAndPreloadPhoneCall();
 }
 
 namespace sfx{
@@ -56,7 +59,7 @@ namespace sfx{
         extern OSL_SOUND* laugh;
         extern OSL_SOUND* move;
         extern OSL_SOUND* walk;
-        extern OSL_SOUND* kitchen;
+        // extern OSL_SOUND* kitchen; // DISABLED: Not currently used
         extern OSL_SOUND* run;
         extern OSL_SOUND* knock;
         extern OSL_SOUND* camera[2];
@@ -77,11 +80,12 @@ namespace sfx{
 
         void playLaugh();
         void playWalk();
-        void playKitchen();
+        // void playKitchen(); // DISABLED: Not currently used
         void playScare();
 
         void playRun();
         void playKnock();
+        void preloadCriticalAudio();
     }
     namespace sixam{
 
@@ -89,8 +93,8 @@ namespace sfx{
 
         void loadSixAm();
         void unloadSixAm();
-        
         void playSixAm();
+        void preloadSixAmAudio();
     }
     namespace jumpscare{
         extern OSL_SOUND *jumpscare;

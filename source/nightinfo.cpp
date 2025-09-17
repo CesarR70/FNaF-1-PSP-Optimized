@@ -2,7 +2,8 @@
 
 namespace nightinfo {
 
-    int countdown = 400;
+    // OPTIMIZATION: Remove countdown timer for better loading reliability
+    // Transition now purely based on loading completion, not arbitrary time
     bool officeObjectsLoaded = false;
     bool isLoading = false;
     bool deactivated = false;
@@ -16,7 +17,7 @@ namespace nightinfo {
     static bool transitioning = false;
 
     void reset() {
-        countdown = 400;
+        // OPTIMIZATION: Removed countdown timer - transition based on loading completion only
         officeObjectsLoaded = false;
         isLoading = false;
         deactivated = false;
@@ -85,7 +86,13 @@ namespace nightinfo {
                 case 11: ambience::office::loadAmbience(); loadStep++; break;
                 case 12: ambience::office::loadFanSound(); loadStep++; break;
                 case 13: sfx::office::loadSfx();           loadStep++; break;
-                case 14: call::loadPhoneCalls();           loadStep++; break;
+                case 14: call::loadAndPreloadPhoneCall(); loadStep++; break; // Load and pre-cache phone call in one step
+                case 15: sfx::office::preloadCriticalAudio(); loadStep++; break; // ULTRA-AGGRESSIVE: Pre-cache ALL audio for max performance
+                case 16: ambience::office::preloadAmbience(); loadStep++; break; // Pre-cache ambience for zero-latency
+                case 17: sprite::UI::office::preloadCameraAssets(); loadStep++; break; // Pre-cache ALL camera graphics for zero-latency
+                case 18: sprite::UI::office::preloadJumpscareAssets(); loadStep++; break; // Pre-cache ALL jumpscare graphics for zero-latency
+                case 19: ambience::office::preloadEndingMusic(); loadStep++; break; // Pre-cache ending music for zero-latency
+                case 20: sfx::sixam::preloadSixAmAudio(); loadStep++; break; // Pre-cache Six AM audio for zero-latency
 
                 default:
                     officeObjectsLoaded = true;
@@ -112,14 +119,15 @@ namespace nightinfo {
         }
 
         void initOffice() {
-            if (countdown <= 0 && officeObjectsLoaded && !deactivated) {
+            // OPTIMIZATION: Transition purely based on loading completion
+            // No more arbitrary countdown timer - ensures everything is loaded before proceeding
+            if (officeObjectsLoaded && !deactivated) {
                 // Schedule transition; real work happens in postFrame()
                 requestOffice = true;
                 // Optional: prevent re-scheduling if called again
                 deactivated = true;
-            } else {
-                countdown -= 1;
             }
+            // Removed countdown decrement - transition happens when ready
         }
     }
 

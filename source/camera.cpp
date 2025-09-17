@@ -70,10 +70,12 @@ namespace render {
         if (!sprite::UI::office::loaded || !animatronic::reloaded) return;
         
         // CRITICAL: Additional safety check to prevent crashes during high activity
-        // Don't render if animatronics are moving (reloading sprites)
-        if (animatronic::isMoving) return;
+        // Don't render if animatronics are moving (reloading sprites) - EXCEPT during Foxy attacks
+        if (animatronic::isMoving && !animatronic::foxy::atDoor) return;
 
         int cam = clamp(whichCamera, 0, kCamCount - 1);
+        
+        // Normal camera rendering - let the AI system handle everything
         auto* tex = sprite::UI::office::cams[cam];
         
         // CRITICAL: Double-check the texture is still valid after array access

@@ -140,6 +140,8 @@ namespace sprite{
             void loadAllCams();
             void updateChangedCams();
             void unloadCams();
+            void preloadCameraAssets();
+void preloadJumpscareAssets();
 
             /*
             extern Image *cam1a_a[5];
