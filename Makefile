@@ -5,7 +5,6 @@ source/graphics.o 				\
 source/vram.o					\
 source/image2.o					\
 source/audio.o					\
-source/memory.o					\
 source/state.o					\
 source/save.o					\
 source/menu.o					\
@@ -38,7 +37,7 @@ LIBS += -lpng -lz -ljpeg -lpspgum_vfpu -lpspgu -lpspgum -lpspvfpu -lpspvram \
 	-losl -lpspaudiolib -lpspaudio -lpspaudiocodec -lpspmp3 -lpsppower -lstdc++ -lm
 
 EXTRA_TARGETS = EBOOT.PBP
-PSP_EBOOT_TITLE = FNaF 1 PSP v1.5.5
+PSP_EBOOT_TITLE = FNaF 1 PSP v1.5.4
 PSP_EBOOT_ICON = ICON0.PNG
 PSP_EBOOT_PIC1 = PIC1.PNG
 

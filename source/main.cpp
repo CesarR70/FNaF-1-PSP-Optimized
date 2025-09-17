@@ -244,8 +244,8 @@ void handleOfficeState(SceCtrlData ctrlData) {
 
     // Render camera flipping and UI
     camera::render::renderCamFlip();
-    if (camera::isUsing && animatronic::reloaded && sprite::UI::office::loaded) {
-        // Allow camera rendering during Foxy attacks to show warning image
+    if (camera::isUsing && animatronic::reloaded && sprite::UI::office::loaded &&
+        animatronic::foxy::position != 3 && animatronic::foxy::position != 4) {
         camera::render::renderCamera();
     }
 
