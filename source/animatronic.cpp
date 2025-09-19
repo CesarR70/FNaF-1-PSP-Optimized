@@ -1,4 +1,5 @@
 #include "included/animatronic.hpp"
+#include "included/state.hpp"
 
 // Small, branch prediction hints (PSPSDK uses GCC)
 #if defined(__GNUC__)
@@ -14,17 +15,18 @@ namespace animatronic {
     // ------------------------------
     // Global state (kept same names)
     // ------------------------------
-    bool isMoving = false;
-    bool reloaded = true;
-    bool usingCams = false;
-    bool leftClosed = false;
-    bool rightClosed = false;
+    volatile bool isMoving = false; // volatile for thread safety
+    volatile bool reloaded = true; // volatile for thread safety
+    volatile bool usingCams = false; // volatile for thread safety
+    volatile bool leftClosed = false; // volatile for thread safety
+    volatile bool rightClosed = false; // volatile for thread safety
 
-    bool jumpscaring = false;
+    volatile bool jumpscaring = false; // volatile for thread safety
     bool locked = false;
 
     int ThreadIdR = -1;
     SceUID ReloadSemaphore = -1;  // exposed in header
+    SceUID FoxyStateSemaphore = -1;  // for Foxy attack state synchronization
     int PspThreadStatus = 1;
 
     bool unloaded = false;
@@ -103,8 +105,77 @@ namespace animatronic {
         waitBeforeForceReset = 450;
         sprite::n_jumpscare::whichJumpscare = 0;
 
-        ensureReloadWorker();
+        // CRITICAL: Reset reload worker state to prevent state persistence between nights
+        // This fixes the issue where Night 4→5 transitions inherit worker thread problems
+        // Also fixes death→menu→restart deadlock issues
         sPendingReloads = 0;
+        
+        // Drain any pending semaphore tokens to ensure clean state
+        if (ReloadSemaphore >= 0) {
+            while (sceKernelPollSema(ReloadSemaphore, 1) >= 0) { /* drain */ }
+        }
+        
+        // Initialize Foxy state semaphore for thread-safe attack state management
+        if (FoxyStateSemaphore < 0) {
+            FoxyStateSemaphore = sceKernelCreateSema("foxy_state", 0, 1, 1, nullptr);
+        }
+        
+        // CRITICAL: Ensure worker thread state is completely cleared
+        // This prevents race conditions where the worker thread is still processing when we restart
+        
+        ensureReloadWorker();
+    }
+
+    // CRITICAL: Enhanced reset for death transitions to prevent deadlock inheritance
+    void resetForDeath() {
+        // First, ensure any ongoing reload operations are stopped
+        isMoving = false;
+        reloaded = true;
+        jumpscaring = false;
+        usingCams = false; // CRITICAL: Reset camera usage state
+        
+        // Clear all pending reload requests
+        sPendingReloads = 0;
+        
+        // Drain any pending semaphore tokens to ensure clean state
+        if (ReloadSemaphore >= 0) {
+            while (sceKernelPollSema(ReloadSemaphore, 1) >= 0) { /* drain */ }
+        }
+        
+        // Reset animatronic positions and levels (but don't call full reset to avoid double-reset)
+        freddy::levelOnes = 0;
+        freddy::levelTenths = 0;
+        freddy::totalLevel = 0;
+        freddy::atDoor = false;
+        freddy::position = 0;
+
+        bonnie::levelOnes = 0;
+        bonnie::levelTenths = 0;
+        bonnie::totalLevel = 0;
+        bonnie::atDoor = false;
+        bonnie::position = 0;
+
+        chika::levelOnes = 0;
+        chika::levelTenths = 0;
+        chika::totalLevel = 0;
+        chika::atDoor = false;
+        chika::position = 0;
+
+        foxy::levelOnes = 0;
+        foxy::levelTenths = 0;
+        foxy::totalLevel = 0;
+        foxy::atDoor = false;
+        foxy::position = 0;
+
+        leftClosed = false;
+        rightClosed = false;
+        unloaded = false;
+        locked = false;
+        waitBeforeForceReset = 450;
+        sprite::n_jumpscare::whichJumpscare = 0;
+        
+        // Ensure worker thread state is completely cleared
+        ensureReloadWorker();
     }
 
     void forceAnimatronicAiReset() {
@@ -130,7 +201,10 @@ namespace animatronic {
             if (freddy::atDoor && freddy::position < 6) freddy::atDoor = false;
             if (bonnie::atDoor && bonnie::position < 6) bonnie::atDoor = false;
             if (chika::atDoor && chika::position < 6) chika::atDoor = false;
-            if (foxy::atDoor && foxy::position < 4) foxy::atDoor = false;
+            if (foxy::atDoor && foxy::position < 4) {
+                foxy::atDoor = false;
+                foxy::resetAttackState();
+            }
 
             waitBeforeForceReset = 450;
         } else {
@@ -208,10 +282,21 @@ namespace animatronic {
     }
 
     void setReload() {
-        // CRITICAL: Add additional safety checks to prevent crashes during high activity
-        // Only queue reload if not already in progress and not jumpscaring
-        if (LIKELY(!jumpscaring && !isMoving)) {
-            queueReloadOnce();
+        // CRITICAL: Fix deadlock issue - allow queuing reloads even during active reloads
+        // The semaphore system handles batching multiple requests automatically
+        // Only prevent queuing during jumpscares to maintain stability
+        
+        // Use atomic semaphore operations to prevent race conditions
+        if (LIKELY(!jumpscaring)) {
+            ensureReloadWorker();
+            // Try to acquire semaphore non-blocking to prevent races
+            if (ReloadSemaphore >= 0 && sceKernelPollSema(ReloadSemaphore, 1) >= 0) {
+                // We got the semaphore, now queue the reload and signal back
+                queueReloadOnce();
+            } else {
+                // Semaphore busy or unavailable, queue anyway as system handles batching
+                queueReloadOnce();
+            }
         }
     }
 
@@ -219,20 +304,37 @@ namespace animatronic {
     // Game flow
     // ==============================
     void runAiLoop() {
-        freddy::wait();
-        if (save::whichNight == 2) {
-            freddy::incrementDifficulty();
-        }
-
-        bonnie::wait();
-        chika::wait();
+        // Handle Foxy attack every frame (not just every AI turn)
         if (save::whichNight > 1) {
-            foxy::wait();
+            foxy::handleAttackFrame();
         }
         
-        // CRITICAL: Play move sound from main thread only to prevent race conditions
-        if (usingCams && isMoving) {
-            sfx::office::playMove();
+        // Pause AI movements during Foxy attack
+        // CRITICAL: Read pause state atomically to prevent race conditions
+        bool foxyPaused = false;
+        if (FoxyStateSemaphore >= 0) {
+            sceKernelWaitSema(FoxyStateSemaphore, 1, nullptr);
+            foxyPaused = state::isFoxyAttackPaused;
+            sceKernelSignalSema(FoxyStateSemaphore, 1);
+        } else {
+            foxyPaused = state::isFoxyAttackPaused; // Fallback
+        }
+        if (!foxyPaused) {
+            freddy::wait();
+            if (save::whichNight == 2) {
+                freddy::incrementDifficulty();
+            }
+
+            bonnie::wait();
+            chika::wait();
+            if (save::whichNight > 1) {
+                foxy::wait();
+            }
+            
+            // CRITICAL: Play move sound from main thread only to prevent race conditions
+            if (usingCams && isMoving) {
+                sfx::office::playMove();
+            }
         }
     }
 
@@ -241,15 +343,30 @@ namespace animatronic {
 
         state::isOffice = false;
 
+        // Clean up office audio (comprehensive cleanup matching powerout.cpp)
         sfx::office::unloadSfx();
         ambience::office::unloadAmbience();
         ambience::office::unloadFanSound();
+        call::unloadPhoneCalls();
 
+        // Clean up office sprites and UI (comprehensive cleanup matching powerout.cpp)
+        sprite::UI::office::unloadCamUi();
+        sprite::UI::office::unloadPowerInfo();
+        sprite::UI::office::unloadTimeInfo();
+        sprite::office::unloadDoors();
+        sprite::office::unloadButtons();
         sprite::UI::office::unloadCams();
         sprite::UI::office::unloadCamFlip();
 
+        // Clean up office background sprites (comprehensive cleanup matching powerout.cpp)
         officeImage::unloadOffice1Sprites();
-        // officeImage::unloadOffice2Sprites();
+        officeImage::unloadOffice2Sprites();
+
+        // CRITICAL: Clean up pre-cached assets to prevent camera system conflicts
+        // This matches the comprehensive cleanup in powerout.cpp and dead.cpp
+        text::preload::unloadCameraAssets();
+        text::preload::unloadJumpscareAssets();
+        sfx::preload::unloadCriticalAudio();
 
         sfx::jumpscare::loadJumpscareSound();
 
@@ -257,6 +374,11 @@ namespace animatronic {
     }
 
     void initJumpscare() {
+        // Load sprites immediately (benefits from pre-caching system)
+        // This ensures sprites are ready before state transition
+        sprite::n_jumpscare::loadJumpscare();
+        
+        // Only set state after loading is complete
         state::isJumpscare = true;
     }
 
@@ -552,7 +674,7 @@ namespace animatronic {
 
         void incrementDifficulty() { totalLevel += 1; }
     }
-
+    
     // ==============================
     // Foxy
     // ==============================
@@ -566,6 +688,11 @@ namespace animatronic {
         int   delay = 460; // int
 
         bool  atDoor = false;
+        
+        // Foxy attack system
+        int   warningTimer = 0;
+        bool  foxyAttackStarted = false;
+        bool  knockPlayed = false;
 
         inline void reloadPosition() {
             sprite::UI::office::foxyPosition = position;
@@ -581,11 +708,39 @@ namespace animatronic {
         inline void resetToIdle() {
             atDoor = false;
             position = 0;
+            warningTimer = 0;
+            foxyAttackStarted = false;
+            knockPlayed = false;
+            
+            // CRITICAL: Clear pause state atomically
+            if (FoxyStateSemaphore >= 0) {
+                sceKernelWaitSema(FoxyStateSemaphore, 1, nullptr);
+                state::isFoxyAttackPaused = false;
+                sceKernelSignalSema(FoxyStateSemaphore, 1);
+            } else {
+                state::isFoxyAttackPaused = false; // Fallback
+            }
+            
             reloadPosition();
         }
 
+        inline void resetAttackState() {
+            warningTimer = 0;
+            foxyAttackStarted = false;
+            knockPlayed = false;
+            
+            // CRITICAL: Clear pause state atomically
+            if (FoxyStateSemaphore >= 0) {
+                sceKernelWaitSema(FoxyStateSemaphore, 1, nullptr);
+                state::isFoxyAttackPaused = false;
+                sceKernelSignalSema(FoxyStateSemaphore, 1);
+            } else {
+                state::isFoxyAttackPaused = false; // Fallback
+            }
+        }
+
         inline void blockAttack() {
-            sfx::office::playKnock();
+            // knock.wav is now played in handleAtDoor() when user blocks
             resetToIdle();
         }
 
@@ -598,13 +753,58 @@ namespace animatronic {
         void handleAtDoor() {
             if (!atDoor) {
                 atDoor = true;
-            }
-
-            if (atDoor && !jumpscaring) {
-                if (!leftClosed) {
-                    triggerJumpscare();
+                // Start the warning timer when Foxy reaches the door
+                warningTimer = 0;
+                foxyAttackStarted = false;
+                knockPlayed = false;
+                
+                // CRITICAL: Set pause state atomically using semaphore synchronization
+                if (FoxyStateSemaphore >= 0) {
+                    sceKernelWaitSema(FoxyStateSemaphore, 1, nullptr);
+                    state::isFoxyAttackPaused = true; // Pause cameras and AI during attack
+                    sceKernelSignalSema(FoxyStateSemaphore, 1);
                 } else {
-                    blockAttack();
+                    state::isFoxyAttackPaused = true; // Fallback if semaphore unavailable
+                }
+            }
+        }
+
+        void handleAttackFrame() {
+            // Only handle attack logic if Foxy is at the door
+            if (atDoor && !jumpscaring) {
+                // Play run.wav immediately when Foxy reaches the door
+                if (!foxyAttackStarted) {
+                    sfx::office::playRun();
+                    foxyAttackStarted = true;
+                }
+                
+                // Increment warning timer every frame
+                warningTimer++;
+                
+                // Wait 1 second (60 frames at 60 FPS) before attacking
+                if (warningTimer >= 60) {
+                    if (!leftClosed) {
+                        // User didn't block - trigger jumpscare
+                        // CRITICAL: Clear pause state atomically before jumpscare
+                        if (FoxyStateSemaphore >= 0) {
+                            sceKernelWaitSema(FoxyStateSemaphore, 1, nullptr);
+                            state::isFoxyAttackPaused = false;
+                            sceKernelSignalSema(FoxyStateSemaphore, 1);
+                        } else {
+                            state::isFoxyAttackPaused = false; // Fallback
+                        }
+                        triggerJumpscare();
+                    } else {
+                        // User blocked - play knock.wav after run.wav
+                        if (!knockPlayed) {
+                            sfx::office::playKnock();
+                            knockPlayed = true;
+                        }
+                        // Wait a bit for knock sound to play, then reset
+                        if (warningTimer >= 90) { // Give knock sound time to play
+                            blockAttack();
+                        }
+                    }
                 }
             }
         }
@@ -650,15 +850,15 @@ namespace animatronic {
     }
 
     // ==============================
-    // Defaults
+    // Defaults | [0] Freddy, [1] Bonnie, [2] Chica, [3] Foxy
     // ==============================
     void setDefault() {
         static const int levels[6][4] = {
             {0, 0, 0, 0},   // Night 1
             {0, 3, 1, 1},   // Night 2
-            {1, 0, 5, 2},   // Night 3
-            {1, 2, 4, 6},   // Night 4
-            {3, 5, 7, 5},   // Night 5
+            {1, 5, 9, 2},   // Night 3
+            {1, 5, 9, 6},   // Night 4
+            {3, 5, 9, 6},   // Night 5
             {4, 10, 12, 6}  // Night 6
         };
 

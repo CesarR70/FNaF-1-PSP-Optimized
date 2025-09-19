@@ -109,4 +109,10 @@ namespace sfx{
         void playDeadSound();
         void unloadDeadSound();
     }
+    
+    // Pre-caching System
+    namespace preload {
+        void preloadCriticalAudio();
+        void unloadCriticalAudio();
+    }
 }

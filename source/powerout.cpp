@@ -51,9 +51,42 @@ namespace powerout {
                 music::n_ending::stopped = true;
             }
 
-            // Prepare jumpscare
+            // CRITICAL: Clean up office assets to prevent memory issues and loading conflicts
+            // This matches cleanup patterns from dead.cpp and sixam.cpp
+            
+            // Clean up office audio
+            sfx::office::unloadSfx();
+            ambience::office::unloadAmbience();
+            ambience::office::unloadFanSound();
+            call::unloadPhoneCalls();
+
+            // Clean up office sprites and UI
+            sprite::UI::office::unloadCamUi();
+            sprite::UI::office::unloadPowerInfo();
+            sprite::UI::office::unloadTimeInfo();
+            sprite::office::unloadDoors();
+            sprite::office::unloadButtons();
+            sprite::UI::office::unloadCams();
+            sprite::UI::office::unloadCamFlip();
+
+            // Clean up office background sprites
+            officeImage::unloadOffice1Sprites();
+            officeImage::unloadOffice2Sprites();
+
+            // Clean up pre-cached assets to prevent memory conflicts
+            text::preload::unloadCameraAssets();
+            text::preload::unloadJumpscareAssets();
+            sfx::preload::unloadCriticalAudio();
+
+            // Prepare jumpscare - load BEFORE setting state to prevent black screen
             sfx::jumpscare::loadJumpscareSound();
             sprite::n_jumpscare::whichJumpscare = 1;
+            
+            // Load sprites immediately (benefits from pre-caching system)
+            // This ensures sprites are ready before state transition
+            sprite::n_jumpscare::loadJumpscare();
+            
+            // Only set state after loading is complete
             state::isJumpscare = true;
 
             // Defer freeing the powerout textures until the GPU has presented

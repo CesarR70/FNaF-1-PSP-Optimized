@@ -86,6 +86,11 @@ namespace nightinfo {
                 case 12: ambience::office::loadFanSound(); loadStep++; break;
                 case 13: sfx::office::loadSfx();           loadStep++; break;
                 case 14: call::loadPhoneCalls();           loadStep++; break;
+                
+                // Pre-caching for performance
+                case 15: text::preload::preloadCameraAssets(); loadStep++; break; // Pre-cache ALL camera graphics
+                case 16: text::preload::preloadJumpscareAssets(); loadStep++; break; // Pre-cache ALL jumpscare graphics
+                case 17: sfx::preload::preloadCriticalAudio(); loadStep++; break; // Pre-cache critical audio
 
                 default:
                     officeObjectsLoaded = true;

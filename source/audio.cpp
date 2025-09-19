@@ -1,17 +1,37 @@
 #include "included/audio.hpp"
+#include "included/memory.hpp"
 
 // Safety helper: pause before delete, then null the pointer
 // CRITICAL: Add thread safety to prevent race conditions during high activity
+static SceUID audioSemaphore = -1;
+
+static inline void initAudioSemaphore() {
+    if (audioSemaphore < 0) {
+        audioSemaphore = sceKernelCreateSema("audio_sema", 0, 1, 1, nullptr);
+    }
+}
+
 static inline void safeDelete(OSL_SOUND*& s) {
+    initAudioSemaphore();
+    
+    if (audioSemaphore >= 0) {
+        sceKernelWaitSema(audioSemaphore, 1, nullptr);
+    }
+    
     if (s) {
         // CRITICAL: Check if sound is still valid before operations
         // This prevents crashes when sound is accessed from multiple threads
         int channel = oslGetSoundChannel(s);
         if (channel != -1) {
             oslPauseSound(s, 1); // pause this sound (not -1)
+            sceKernelDelayThread(1000); // Brief delay for pause to take effect (1ms)
         }
         oslDeleteSound(s);
         s = nullptr;
+    }
+    
+    if (audioSemaphore >= 0) {
+        sceKernelSignalSema(audioSemaphore, 1);
     }
 }
 
@@ -355,6 +375,138 @@ namespace sfx {
         }
         void unloadDeadSound() {
             safeDelete(dead);
+        }
+    }
+    
+    // ==============================
+    // Pre-caching System
+    // ==============================
+    namespace preload {
+        
+        // CRITICAL: Track exact amounts for proper cleanup
+        static size_t lastAudioPreCachedBytes = 0;
+        
+        void preloadCriticalAudio() {
+            // CRITICAL: Prevent double pre-caching to avoid memory accumulation
+            if (lastAudioPreCachedBytes > 0) {
+                DEBUG_PRINTF("⚠️  WARNING: Audio already pre-cached (%zu bytes), skipping duplicate pre-cache\n", 
+                       lastAudioPreCachedBytes);
+                return;
+            }
+            
+            // Pre-cache critical audio assets for zero-latency playback
+            size_t preCachedBytes = 0;
+            
+            // Pre-cache office sounds
+            if (sfx::office::move) {
+                oslGetSoundChannel(sfx::office::move); // Pre-warm audio system
+                preCachedBytes += 8288; // move.wav - AI movement
+            }
+            
+            if (sfx::office::run) {
+                oslGetSoundChannel(sfx::office::run); // Pre-warm audio system
+                preCachedBytes += 12000; // run.wav - Foxy attack
+            }
+            
+            if (sfx::office::knock) {
+                oslGetSoundChannel(sfx::office::knock); // Pre-warm audio system
+                preCachedBytes += 5000; // knock.wav - Door close
+            }
+            
+            if (sfx::office::door) {
+                oslGetSoundChannel(sfx::office::door); // Pre-warm audio system
+                preCachedBytes += 3000; // door.wav - Door open/close
+            }
+            
+            if (sfx::office::buzz) {
+                oslGetSoundChannel(sfx::office::buzz); // Pre-warm audio system
+                preCachedBytes += 8000; // buzz.wav - Power low
+            }
+            
+            // Pre-cache camera sounds (CRITICAL for camera functionality)
+            if (sfx::office::laugh) {
+                oslGetSoundChannel(sfx::office::laugh); // Pre-warm audio system
+                preCachedBytes += 5000; // laugh.wav - Animatronic laugh
+            }
+            
+            if (sfx::office::switchCam) {
+                oslGetSoundChannel(sfx::office::switchCam); // Pre-warm audio system
+                preCachedBytes += 3000; // switch.wav - Camera switch
+            }
+            
+            if (sfx::office::camera[0]) { // openCam
+                oslGetSoundChannel(sfx::office::camera[0]); // Pre-warm audio system
+                preCachedBytes += 2000; // openCam.wav - Camera open
+            }
+            
+            if (sfx::office::camera[1]) { // closeCam
+                oslGetSoundChannel(sfx::office::camera[1]); // Pre-warm audio system
+                preCachedBytes += 2000; // closeCam.wav - Camera close
+            }
+            
+            // Pre-cache office scare sound (replaces jumpscare2 for better memory usage)
+            if (sfx::office::scare) {
+                oslGetSoundChannel(sfx::office::scare); // Pre-warm audio system
+                preCachedBytes += 8000; // scare.wav - Office scare sound
+            }
+            
+            // Pre-cache jumpscare sounds
+            if (sfx::jumpscare::jumpscare) {
+                oslGetSoundChannel(sfx::jumpscare::jumpscare); // Pre-warm audio system
+                preCachedBytes += 15000; // jumpscare.wav
+            }
+            
+            if (sfx::jumpscare::dead) {
+                oslGetSoundChannel(sfx::jumpscare::dead); // Pre-warm audio system
+                preCachedBytes += 10000; // dead.wav
+            }
+            
+            // Pre-cache ambience
+            if (ambience::office::ambience) {
+                oslGetSoundChannel(ambience::office::ambience); // Pre-warm audio system
+                preCachedBytes += 50000; // ambience_mix.wav
+            }
+            
+            if (ambience::office::fan) {
+                oslGetSoundChannel(ambience::office::fan); // Pre-warm audio system
+                preCachedBytes += 20000; // fan.wav
+            }
+            
+            // Pre-cache phone calls
+            for (int i = 0; i < 5; ++i) {
+                if (call::phoneCalls[i]) {
+                    oslGetSoundChannel(call::phoneCalls[i]); // Pre-warm audio system
+                    preCachedBytes += 30000; // call1-5.wav
+                }
+            }
+            
+            // Pre-cache ending music
+            if (music::n_ending::endingSong) {
+                oslGetSoundChannel(music::n_ending::endingSong); // Pre-warm audio system
+                preCachedBytes += 100000; // music.wav
+            }
+            
+            // Pre-cache Six AM chimes
+            if (sfx::sixam::chimes) {
+                oslGetSoundChannel(sfx::sixam::chimes); // Pre-warm audio system
+                preCachedBytes += 15000; // chimes.wav
+            }
+            
+            // Track memory usage and store for cleanup
+            lastAudioPreCachedBytes = preCachedBytes;
+            memory::trackAudio(preCachedBytes);
+            DEBUG_PRINTF("Pre-cached %zu bytes of audio assets\n", preCachedBytes);
+        }
+        
+        void unloadCriticalAudio() {
+            // CRITICAL: Properly untrack memory to prevent accumulation across nights
+            if (lastAudioPreCachedBytes > 0) {
+                memory::untrackAudio(lastAudioPreCachedBytes);
+                DEBUG_PRINTF("Unloaded %zu bytes of pre-cached audio assets\n", lastAudioPreCachedBytes);
+                lastAudioPreCachedBytes = 0; // Reset for next pre-cache
+            } else {
+                DEBUG_PRINTF("No audio assets to unload\n");
+            }
         }
     }
 }

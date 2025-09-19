@@ -10,19 +10,19 @@ namespace office{
     extern std::string buttonState;
     extern std::string doorButtonState;
 
-    extern int usageCountdown;
-    extern bool leftEdge;
-    extern bool rightEdge;
+    extern volatile int usageCountdown; // volatile for thread safety
+    extern volatile bool leftEdge; // volatile for thread safety
+    extern volatile bool rightEdge; // volatile for thread safety
 
-    extern bool leftOn;
-    extern bool rightOn;
-    extern bool leftClosed;
-    extern bool rightClosed;
+    extern volatile bool leftOn; // volatile for thread safety
+    extern volatile bool rightOn; // volatile for thread safety
+    extern volatile bool leftClosed; // volatile for thread safety
+    extern volatile bool rightClosed; // volatile for thread safety
 
-    extern bool closingLeft;
-    extern bool openingLeft;
-    extern bool closingRight;
-    extern bool openingRight;
+    extern volatile bool closingLeft; // volatile for thread safety
+    extern volatile bool openingLeft; // volatile for thread safety
+    extern volatile bool closingRight; // volatile for thread safety
+    extern volatile bool openingRight; // volatile for thread safety
 
     void reset();
 

@@ -15,18 +15,19 @@
 #endif
 
 namespace animatronic {
-    extern bool isMoving;
-    extern bool reloaded;
-    extern bool usingCams;
-    extern bool leftClosed;
-    extern bool rightClosed;
+    extern volatile bool isMoving; // volatile for thread safety
+    extern volatile bool reloaded; // volatile for thread safety
+    extern volatile bool usingCams; // volatile for thread safety
+    extern volatile bool leftClosed; // volatile for thread safety
+    extern volatile bool rightClosed; // volatile for thread safety
 
-    extern bool jumpscaring;
+    extern volatile bool jumpscaring; // volatile for thread safety
 
     extern bool locked;
 
     extern int ThreadIdR;
     extern SceUID ReloadSemaphore;   // persistent reload semaphore handle
+    extern SceUID FoxyStateSemaphore; // Foxy attack state synchronization
     extern int PspThreadStatus;
 
     extern bool unloaded;
@@ -34,6 +35,7 @@ namespace animatronic {
     extern int waitBeforeForceReset;
 
     void reset();
+    void resetForDeath(); // Enhanced reset for death transitions to prevent deadlock inheritance
     void forceAnimatronicAiReset();
     int reloadCams(SceSize args, void* argp);
     void setReload();
@@ -129,10 +131,12 @@ namespace animatronic {
         bool shouldMoveOrAttack();
         void attemptMoveOrAttack();
         void handleAtDoor();
+        void handleAttackFrame();
         void handleMovement();
         void triggerJumpscare();
         void blockAttack();
         void resetToIdle();
+        void resetAttackState();
         void reloadPosition();
 
         // Returns the global animatronic::isMoving flag.

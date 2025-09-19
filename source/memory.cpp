@@ -1,90 +1,160 @@
 #include "included/memory.hpp"
+#include "included/global.hpp"
 #include <cstdio>
 
 namespace memory {
     
-    MemoryUsage currentUsage;
+    // Memory budget tracking for PSP optimization
+    // PSP has ~60MB total RAM, we need to track usage carefully
     
-    void trackAudioPreCached(size_t bytes) {
-        currentUsage.audioPreCached = bytes;
-    }
+    // CRITICAL: Make these static to avoid race conditions
+    static size_t totalGraphicsMemory = 0;
+    static size_t totalAudioMemory = 0;
+    static size_t totalSystemMemory = 0;
     
-    void trackAudioOffice(size_t bytes) {
-        currentUsage.audioOffice = bytes;
-    }
-    
-    void trackAudioAmbience(size_t bytes) {
-        currentUsage.audioAmbience = bytes;
-    }
-    
-    void trackAudioMusic(size_t bytes) {
-        currentUsage.audioMusic = bytes;
-    }
+    // OPTIMIZED: Increased limits for better performance while maintaining stability
+    const size_t MAX_GRAPHICS_MEMORY = 45 * 1024 * 1024; // 45MB for graphics (increased for more pre-caching)
+    const size_t MAX_AUDIO_MEMORY = 8 * 1024 * 1024;     // 8MB for audio (kept same)
+    const size_t MAX_SYSTEM_MEMORY = 5 * 1024 * 1024;    // 5MB for system (increased for stability)
+    const size_t MAX_TOTAL_MEMORY = 58 * 1024 * 1024;    // 58MB total (6MB OS headroom - still safe)
     
     void trackGraphicsCamera(size_t bytes) {
-        currentUsage.graphicsCamera = bytes;
-    }
-    
-    void trackGraphicsUI(size_t bytes) {
-        currentUsage.graphicsUI = bytes;
-    }
-    
-    void trackGraphicsAnimatronic(size_t bytes) {
-        currentUsage.graphicsAnimatronic = bytes;
+        totalGraphicsMemory += bytes;
+        DEBUG_PRINTF("Memory: Graphics Camera +%zu bytes (Total: %zu MB)\n", 
+               bytes, totalGraphicsMemory / (1024 * 1024));
+        
+        // Warning if approaching limit
+        if (totalGraphicsMemory > MAX_GRAPHICS_MEMORY * 0.9) {
+            DEBUG_PRINTF("⚠️  WARNING: Graphics memory at %.1f%% of limit!\n", 
+                   (float)totalGraphicsMemory / MAX_GRAPHICS_MEMORY * 100.0f);
+        }
     }
     
     void trackGraphicsJumpscare(size_t bytes) {
-        currentUsage.graphicsJumpscare = bytes;
+        totalGraphicsMemory += bytes;
+        DEBUG_PRINTF("Memory: Graphics Jumpscare +%zu bytes (Total: %zu MB)\n", 
+               bytes, totalGraphicsMemory / (1024 * 1024));
+        
+        // Warning if approaching limit
+        if (totalGraphicsMemory > MAX_GRAPHICS_MEMORY * 0.9) {
+            DEBUG_PRINTF("⚠️  WARNING: Graphics memory at %.1f%% of limit!\n", 
+                   (float)totalGraphicsMemory / MAX_GRAPHICS_MEMORY * 100.0f);
+        }
+    }
+    
+    void trackAudio(size_t bytes) {
+        totalAudioMemory += bytes;
+        DEBUG_PRINTF("Memory: Audio +%zu bytes (Total: %zu MB)\n", 
+               bytes, totalAudioMemory / (1024 * 1024));
+        
+        // Warning if approaching limit
+        if (totalAudioMemory > MAX_AUDIO_MEMORY * 0.9) {
+            DEBUG_PRINTF("⚠️  WARNING: Audio memory at %.1f%% of limit!\n", 
+                   (float)totalAudioMemory / MAX_AUDIO_MEMORY * 100.0f);
+        }
+    }
+    
+    void trackSystem(size_t bytes) {
+        totalSystemMemory += bytes;
+        DEBUG_PRINTF("Memory: System +%zu bytes (Total: %zu MB)\n", 
+               bytes, totalSystemMemory / (1024 * 1024));
+        
+        // Warning if approaching limit
+        if (totalSystemMemory > MAX_SYSTEM_MEMORY * 0.9) {
+            DEBUG_PRINTF("⚠️  WARNING: System memory at %.1f%% of limit!\n", 
+                   (float)totalSystemMemory / MAX_SYSTEM_MEMORY * 100.0f);
+        }
+    }
+    
+    // CRITICAL: Add untracking functions to prevent memory accumulation
+    void untrackGraphicsCamera(size_t bytes) {
+        if (totalGraphicsMemory >= bytes) {
+            totalGraphicsMemory -= bytes;
+            DEBUG_PRINTF("Memory: Graphics Camera -%zu bytes (Total: %zu MB)\n", 
+                   bytes, totalGraphicsMemory / (1024 * 1024));
+        } else {
+            DEBUG_PRINTF("⚠️  ERROR: Attempted to untrack %zu bytes but only %zu bytes allocated!\n",
+                   bytes, totalGraphicsMemory);
+            DEBUG_PRINTF("⚠️  This indicates a memory tracking bug - investigate immediately!\n");
+            // Don't reset to 0 - keep the incorrect value visible for debugging
+            // totalGraphicsMemory = 0; // REMOVED: This was masking real bugs
+        }
+    }
+    
+    void untrackGraphicsJumpscare(size_t bytes) {
+        if (totalGraphicsMemory >= bytes) {
+            totalGraphicsMemory -= bytes;
+            DEBUG_PRINTF("Memory: Graphics Jumpscare -%zu bytes (Total: %zu MB)\n", 
+                   bytes, totalGraphicsMemory / (1024 * 1024));
+        } else {
+            DEBUG_PRINTF("⚠️  ERROR: Attempted to untrack %zu bytes but only %zu bytes allocated!\n",
+                   bytes, totalGraphicsMemory);
+            DEBUG_PRINTF("⚠️  This indicates a memory tracking bug - investigate immediately!\n");
+            // Don't reset to 0 - keep the incorrect value visible for debugging
+        }
+    }
+    
+    void untrackAudio(size_t bytes) {
+        if (totalAudioMemory >= bytes) {
+            totalAudioMemory -= bytes;
+            DEBUG_PRINTF("Memory: Audio -%zu bytes (Total: %zu MB)\n", 
+                   bytes, totalAudioMemory / (1024 * 1024));
+        } else {
+            DEBUG_PRINTF("⚠️  ERROR: Attempted to untrack %zu bytes but only %zu bytes allocated!\n",
+                   bytes, totalAudioMemory);
+            DEBUG_PRINTF("⚠️  This indicates a memory tracking bug - investigate immediately!\n");
+            // Don't reset to 0 - keep the incorrect value visible for debugging
+        }
+    }
+    
+    void untrackSystem(size_t bytes) {
+        if (totalSystemMemory >= bytes) {
+            totalSystemMemory -= bytes;
+            DEBUG_PRINTF("Memory: System -%zu bytes (Total: %zu MB)\n", 
+                   bytes, totalSystemMemory / (1024 * 1024));
+        } else {
+            DEBUG_PRINTF("⚠️  ERROR: Attempted to untrack %zu bytes but only %zu bytes allocated!\n",
+                   bytes, totalSystemMemory);
+            DEBUG_PRINTF("⚠️  This indicates a memory tracking bug - investigate immediately!\n");
+            // Don't reset to 0 - keep the incorrect value visible for debugging
+        }
+    }
+    
+    bool isMemoryBudgetOK() {
+        size_t totalUsed = totalGraphicsMemory + totalAudioMemory + totalSystemMemory;
+        
+        // Warning if approaching total limit
+        if (totalUsed > MAX_TOTAL_MEMORY * 0.9) {
+            DEBUG_PRINTF("⚠️  WARNING: Total memory at %.1f%% of limit! (%zu MB / %zu MB)\n", 
+                   (float)totalUsed / MAX_TOTAL_MEMORY * 100.0f,
+                   totalUsed / (1024 * 1024),
+                   MAX_TOTAL_MEMORY / (1024 * 1024));
+        }
+        
+        return (totalGraphicsMemory < MAX_GRAPHICS_MEMORY && 
+                totalAudioMemory < MAX_AUDIO_MEMORY && 
+                totalSystemMemory < MAX_SYSTEM_MEMORY &&
+                totalUsed < MAX_TOTAL_MEMORY);
     }
     
     void printMemoryReport() {
-        printf("=== PSP MEMORY USAGE REPORT ===\n");
-        printf("Audio Pre-cached: %.2f MB (%.1f%%)\n", 
-               currentUsage.audioPreCached / (1024.0f * 1024.0f),
-               (float)currentUsage.audioPreCached / (60 * 1024 * 1024) * 100.0f);
-        printf("Audio Office: %.2f MB (%.1f%%)\n", 
-               currentUsage.audioOffice / (1024.0f * 1024.0f),
-               (float)currentUsage.audioOffice / (60 * 1024 * 1024) * 100.0f);
-        printf("Audio Ambience: %.2f MB (%.1f%%)\n", 
-               currentUsage.audioAmbience / (1024.0f * 1024.0f),
-               (float)currentUsage.audioAmbience / (60 * 1024 * 1024) * 100.0f);
-        printf("Audio Music: %.2f MB (%.1f%%)\n", 
-               currentUsage.audioMusic / (1024.0f * 1024.0f),
-               (float)currentUsage.audioMusic / (60 * 1024 * 1024) * 100.0f);
-        printf("Graphics Camera: %.2f MB (%.1f%%)\n", 
-               currentUsage.graphicsCamera / (1024.0f * 1024.0f),
-               (float)currentUsage.graphicsCamera / (60 * 1024 * 1024) * 100.0f);
-        printf("Graphics UI: %.2f MB (%.1f%%)\n", 
-               currentUsage.graphicsUI / (1024.0f * 1024.0f),
-               (float)currentUsage.graphicsUI / (60 * 1024 * 1024) * 100.0f);
-        printf("Graphics Animatronic: %.2f MB (%.1f%%)\n", 
-               currentUsage.graphicsAnimatronic / (1024.0f * 1024.0f),
-               (float)currentUsage.graphicsAnimatronic / (60 * 1024 * 1024) * 100.0f);
-        printf("Graphics Jumpscare: %.2f MB (%.1f%%)\n", 
-               currentUsage.graphicsJumpscare / (1024.0f * 1024.0f),
-               (float)currentUsage.graphicsJumpscare / (60 * 1024 * 1024) * 100.0f);
-        printf("TOTAL: %.2f MB (%.1f%% of 60MB budget)\n", 
-               currentUsage.getTotal() / (1024.0f * 1024.0f),
-               currentUsage.getPercentageUsed());
-        printf("Available: %.2f MB\n", getAvailableBudget() / (1024.0f * 1024.0f));
-    }
-    
-    bool isWithinBudget() {
-        const size_t BUDGET_MB = 60 * 1024 * 1024; // 60MB budget
-        return currentUsage.getTotal() < BUDGET_MB;
-    }
-    
-    size_t getAvailableBudget() {
-        const size_t BUDGET_MB = 60 * 1024 * 1024; // 60MB budget
-        size_t used = currentUsage.getTotal();
-        return (used < BUDGET_MB) ? (BUDGET_MB - used) : 0;
-    }
-    
-    bool canPreCacheAdditionalAudio(size_t additionalBytes) {
-        return (currentUsage.audioPreCached + additionalBytes) < (5 * 1024 * 1024); // 5MB limit for audio
-    }
-    
-    bool shouldPreCacheMoreAssets() {
-        return currentUsage.getPercentageUsed() < 70.0f; // Pre-cache if under 70% usage
+        DEBUG_PRINTF("\n=== MEMORY BUDGET REPORT ===\n");
+        DEBUG_PRINTF("Graphics: %zu MB / %zu MB (%.1f%%)\n", 
+               totalGraphicsMemory / (1024 * 1024), 
+               MAX_GRAPHICS_MEMORY / (1024 * 1024),
+               (float)totalGraphicsMemory / MAX_GRAPHICS_MEMORY * 100.0f);
+        DEBUG_PRINTF("Audio: %zu MB / %zu MB (%.1f%%)\n", 
+               totalAudioMemory / (1024 * 1024), 
+               MAX_AUDIO_MEMORY / (1024 * 1024),
+               (float)totalAudioMemory / MAX_AUDIO_MEMORY * 100.0f);
+        DEBUG_PRINTF("System: %zu MB / %zu MB (%.1f%%)\n", 
+               totalSystemMemory / (1024 * 1024), 
+               MAX_SYSTEM_MEMORY / (1024 * 1024),
+               (float)totalSystemMemory / MAX_SYSTEM_MEMORY * 100.0f);
+        DEBUG_PRINTF("Total: %zu MB / %zu MB (%.1f%%) [64MB PSP Total]\n", 
+               (totalGraphicsMemory + totalAudioMemory + totalSystemMemory) / (1024 * 1024),
+               MAX_TOTAL_MEMORY / (1024 * 1024),
+               (float)(totalGraphicsMemory + totalAudioMemory + totalSystemMemory) / MAX_TOTAL_MEMORY * 100.0f);
+        DEBUG_PRINTF("============================\n\n");
     }
 }

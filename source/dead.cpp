@@ -1,5 +1,8 @@
 #include "included/dead.hpp"
 
+// External reference to the reset flag in main.cpp
+extern bool reseted;
+
 namespace dead {
 
     int waitFrames = 600;
@@ -78,6 +81,15 @@ namespace dead {
         sprite::UI::office::unloadPowerInfo();
         sprite::office::unloadDoors();
         sprite::office::unloadButtons();
+        
+        // CRITICAL: Unload camera system to ensure clean state for next game
+        // This prevents camera deadlock by ensuring cameras are properly reinitialized
+        sprite::UI::office::unloadCams();
+        
+        // CRITICAL: Unload pre-cached assets to prevent interference with camera system
+        text::preload::unloadCameraAssets();
+        text::preload::unloadJumpscareAssets();
+        sfx::preload::unloadCriticalAudio();
 
         // Load menu assets
         image::menu::loadMenuBackground();
@@ -90,6 +102,13 @@ namespace dead {
         music::menu::playMenuMusic();
 
         state::isMenu = true;
+
+        // CRITICAL: Reset all game systems when returning to menu
+        // This ensures clean state for the next game session
+        // Note: We don't call resetMain() here because it would cause double-reset
+        // The resetForDeath() already handled the animatronic reset
+        // But we need to ensure the reset flag is set for the next game
+        reseted = false; // This will trigger resetMain() when starting a new game
 
         // Done
         requestMenu = false;

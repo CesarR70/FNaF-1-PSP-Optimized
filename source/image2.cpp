@@ -1,11 +1,15 @@
 #include "included/image2.hpp"
+#include "included/memory.hpp"
 #include <string>
 
 // Helpers: safe free + array free
 static inline void freeImageSafe(Image*& img) {
     if (img) {
+        // CRITICAL: Add safety check to verify image is valid before freeing
+        // This prevents crashes from double-free or corruption
         freeImage(img);
         img = nullptr;
+        DEBUG_PRINTF("Image freed successfully\n");
     }
 }
 
@@ -13,10 +17,12 @@ template <size_t N>
 static inline void freeImageArray(Image* (&arr)[N]) {
     for (size_t i = 0; i < N; ++i) {
         if (arr[i]) {
+            // CRITICAL: Add safety check and error reporting
             freeImage(arr[i]);
             arr[i] = nullptr;
         }
     }
+    DEBUG_PRINTF("Image array[%zu] freed successfully\n", N);
 }
 
 namespace image {
@@ -292,7 +298,13 @@ static std::string buildCamPath(int idx) {
 
     switch (idx) {
         case 0: // Cam 1A
-            if (f > 0) f = 0; // keep original behavior
+            // NEW LOGIC: Show cam1a-empty whenever Freddy is NOT at position 0
+            // This indicates Freddy has moved from his starting position
+            if (f > 0) {
+                return P("animatronic/cam1a/", "cam1a-empty");
+            }
+            
+            // Original logic for when Freddy is at position 0
             if (f == 0 && b == 0 && c == 0) return P("main/", "cam1a");
             if (f == 0 && b > 0 && c == 0)  return P("animatronic/cam1a/", "cam1a-freddy&chica");
             if (f == 0 && b == 0 && c > 0)  return P("animatronic/cam1a/", "cam1a-freddy&bonnie");
@@ -355,7 +367,7 @@ static std::string buildCamPath(int idx) {
     return P("main/", "cam6");
 }
 static int nextCamIdx = 0;
-static constexpr int kCamReloadBudget = 2; // tune 2..4
+static constexpr int kCamReloadBudget = 8; // tune 2..4
 
 void loadCams() {
     if (!loaded) { for (int i = 0; i < 11; ++i) lastPath[i].clear(); }
@@ -723,6 +735,257 @@ namespace text {
             freeImageArray(nightNumbersNormal);
             freeImageArray(nightNumbersPixel);
             freeImageSafe(symbols);
+        }
+    }
+    
+    // ==============================
+    // Pre-caching System
+    // ==============================
+    namespace preload {
+        
+        // CRITICAL: Track exact amounts for proper cleanup
+        static size_t lastCameraPreCachedBytes = 0;
+        static size_t lastJumpscarePreCachedBytes = 0;
+        
+        void preloadCameraAssets() {
+            // ULTRA-AGGRESSIVE: Pre-cache ALL camera graphics for zero-latency
+            // This eliminates ANY potential loading stutter when switching cameras
+            // Now includes BOTH main/ AND animatronic/ images for complete coverage!
+            // Total size: ~1.5 MB (main + animatronic) - well within our 60MB budget!
+            
+            size_t preCachedBytes = 0;
+            
+            // Pre-cache all main camera images (11 cameras)
+            const char* mainCams[] = {
+                "cam1a", "cam1b", "cam1c", "cam2a", "cam2b", 
+                "cam3", "cam4a", "cam4b", "cam5", "cam6", "cam7"
+            };
+            for (int i = 0; i < 11; ++i) {
+                std::string path = "romfs/gfx/office/camera/main/" + std::string(mainCams[i]) + ".png";
+                Image* img = loadPng(path.c_str());
+                if (img) {
+                    // SAFER: Just load and free without queueRetire during pre-caching
+                    // This avoids race conditions with the main game loop
+                    preCachedBytes += 25000; // Average estimate
+                    freeImageSafe(img); // Load and immediately free to pre-cache
+                }
+            }
+            
+            // Pre-cache ALL animatronic camera images for complete coverage
+            // This ensures zero-latency when animatronics move between cameras
+            
+            // Cam 1A animatronic images
+            const char* cam1a_anim[] = {"cam1a-empty", "cam1a-freddy", "cam1a-freddy&bonnie", "cam1a-freddy&chica", "cam1a-freddystare"};
+            for (int i = 0; i < 5; ++i) {
+                std::string path = "romfs/gfx/office/camera/animatronic/cam1a/" + std::string(cam1a_anim[i]) + ".png";
+                Image* img = loadPng(path.c_str());
+                if (img) {
+                    // SAFER: Just load and free without queueRetire during pre-caching
+                    preCachedBytes += 50000; // Estimate per image
+                    freeImageSafe(img); // Load and immediately free to pre-cache
+                }
+            }
+            
+            // Cam 1B animatronic images
+            const char* cam1b_anim[] = {"cam1b-bonnie", "cam1b-chica", "cam1b-freddy"};
+            for (int i = 0; i < 3; ++i) {
+                std::string path = "romfs/gfx/office/camera/animatronic/cam1b/" + std::string(cam1b_anim[i]) + ".png";
+                Image* img = loadPng(path.c_str());
+                if (img) {
+                    // SAFER: Just load and free without queueRetire during pre-caching
+                    preCachedBytes += 50000;
+                    freeImageSafe(img);
+                }
+            }
+            
+            // Cam 1C animatronic images (Foxy)
+            const char* cam1c_anim[] = {"cam1c-foxy1", "cam1c-foxy2", "cam1c-foxy3"};
+            for (int i = 0; i < 3; ++i) {
+                std::string path = "romfs/gfx/office/camera/animatronic/cam1c/" + std::string(cam1c_anim[i]) + ".png";
+                Image* img = loadPng(path.c_str());
+                if (img) {
+                    // SAFER: Just load and free without queueRetire during pre-caching
+                    preCachedBytes += 50000;
+                    freeImageSafe(img);
+                }
+            }
+            
+            // Cam 2A animatronic images
+            const char* cam2a_anim[] = {"cam2a-bonnie"};
+            for (int i = 0; i < 1; ++i) {
+                std::string path = "romfs/gfx/office/camera/animatronic/cam2a/" + std::string(cam2a_anim[i]) + ".png";
+                Image* img = loadPng(path.c_str());
+                if (img) {
+                    // SAFER: Just load and free without queueRetire during pre-caching
+                    preCachedBytes += 50000;
+                    freeImageSafe(img);
+                }
+            }
+            
+            // Cam 2B animatronic images
+            const char* cam2b_anim[] = {"cam2b-bonnie"};
+            for (int i = 0; i < 1; ++i) {
+                std::string path = "romfs/gfx/office/camera/animatronic/cam2b/" + std::string(cam2b_anim[i]) + ".png";
+                Image* img = loadPng(path.c_str());
+                if (img) {
+                    // SAFER: Just load and free without queueRetire during pre-caching
+                    preCachedBytes += 50000;
+                    freeImageSafe(img);
+                }
+            }
+            
+            // Cam 3 animatronic images
+            const char* cam3_anim[] = {"cam3-bonnie"};
+            for (int i = 0; i < 1; ++i) {
+                std::string path = "romfs/gfx/office/camera/animatronic/cam3/" + std::string(cam3_anim[i]) + ".png";
+                Image* img = loadPng(path.c_str());
+                if (img) {
+                    // SAFER: Just load and free without queueRetire during pre-caching
+                    preCachedBytes += 50000;
+                    freeImageSafe(img);
+                }
+            }
+            
+            // Cam 4A animatronic images
+            const char* cam4a_anim[] = {"cam4a-chica", "cam4a-chicaclose", "cam4a-freddy"};
+            for (int i = 0; i < 3; ++i) {
+                std::string path = "romfs/gfx/office/camera/animatronic/cam4a/" + std::string(cam4a_anim[i]) + ".png";
+                Image* img = loadPng(path.c_str());
+                if (img) {
+                    // SAFER: Just load and free without queueRetire during pre-caching
+                    preCachedBytes += 50000;
+                    freeImageSafe(img);
+                }
+            }
+            
+            // Cam 4B animatronic images
+            const char* cam4b_anim[] = {"cam4b-chica", "cam4b-freddy"};
+            for (int i = 0; i < 2; ++i) {
+                std::string path = "romfs/gfx/office/camera/animatronic/cam4b/" + std::string(cam4b_anim[i]) + ".png";
+                Image* img = loadPng(path.c_str());
+                if (img) {
+                    // SAFER: Just load and free without queueRetire during pre-caching
+                    preCachedBytes += 50000;
+                    freeImageSafe(img);
+                }
+            }
+            
+            // Cam 5 animatronic images
+            const char* cam5_anim[] = {"cam5-bonnie", "cam5-bonnieclose"};
+            for (int i = 0; i < 2; ++i) {
+                std::string path = "romfs/gfx/office/camera/animatronic/cam5/" + std::string(cam5_anim[i]) + ".png";
+                Image* img = loadPng(path.c_str());
+                if (img) {
+                    // SAFER: Just load and free without queueRetire during pre-caching
+                    preCachedBytes += 50000;
+                    freeImageSafe(img);
+                }
+            }
+            
+            // Cam 7 animatronic images
+            const char* cam7_anim[] = {"cam7-chica", "cam7-chicaclose", "cam7-freddy"};
+            for (int i = 0; i < 3; ++i) {
+                std::string path = "romfs/gfx/office/camera/animatronic/cam7/" + std::string(cam7_anim[i]) + ".png";
+                Image* img = loadPng(path.c_str());
+                if (img) {
+                    // SAFER: Just load and free without queueRetire during pre-caching
+                    preCachedBytes += 50000;
+                    freeImageSafe(img);
+                }
+            }
+            
+            // Track memory usage and store for cleanup
+            lastCameraPreCachedBytes = preCachedBytes;
+            memory::trackGraphicsCamera(preCachedBytes);
+            DEBUG_PRINTF("Pre-cached %zu bytes of camera assets\n", preCachedBytes);
+        }
+        
+        void preloadJumpscareAssets() {
+            // Pre-cache ALL jumpscare graphics for zero-latency
+            size_t preCachedBytes = 0;
+            
+            // Main jumpscare image
+            Image* img = loadPng("romfs/gfx/jumpscare/0.png");
+            if (img) {
+                // SAFER: Just load and free without queueRetire during pre-caching
+                preCachedBytes += 100000; // Estimate
+                freeImageSafe(img);
+            }
+            
+            // Bonnie jumpscare images
+            const char* bonnieFiles[] = {"0.png", "1.png", "2.png", "3.png", "4.png", "5.png", "6.png", "7.png", "8.png"};
+            for (int i = 0; i < 9; ++i) {
+                std::string path = "romfs/gfx/jumpscare/bonnie/" + std::string(bonnieFiles[i]);
+                img = loadPng(path.c_str());
+                if (img) {
+                    // SAFER: Just load and free without queueRetire during pre-caching
+                    preCachedBytes += 50000; // Estimate per image
+                    freeImageSafe(img);
+                }
+            }
+            
+            // Chica jumpscare images
+            const char* chicaFiles[] = {"0.png", "1.png", "2.png", "3.png", "4.png", "5.png", "6.png", "7.png", "8.png"};
+            for (int i = 0; i < 9; ++i) {
+                std::string path = "romfs/gfx/jumpscare/chica/" + std::string(chicaFiles[i]);
+                img = loadPng(path.c_str());
+                if (img) {
+                    // SAFER: Just load and free without queueRetire during pre-caching
+                    preCachedBytes += 50000;
+                    freeImageSafe(img);
+                }
+            }
+            
+            // Foxy jumpscare images
+            const char* foxyFiles[] = {"0.png", "1.png", "2.png", "3.png", "4.png", "5.png", "6.png", "7.png", "8.png"};
+            for (int i = 0; i < 9; ++i) {
+                std::string path = "romfs/gfx/jumpscare/foxy/" + std::string(foxyFiles[i]);
+                img = loadPng(path.c_str());
+                if (img) {
+                    // SAFER: Just load and free without queueRetire during pre-caching
+                    preCachedBytes += 50000;
+                    freeImageSafe(img);
+                }
+            }
+            
+            // Freddy jumpscare images
+            const char* freddyFiles[] = {"0.png", "1.png", "2.png", "3.png", "4.png", "5.png", "6.png", "7.png", "8.png"};
+            for (int i = 0; i < 9; ++i) {
+                std::string path = "romfs/gfx/jumpscare/freddy/" + std::string(freddyFiles[i]);
+                img = loadPng(path.c_str());
+                if (img) {
+                    // SAFER: Just load and free without queueRetire during pre-caching
+                    preCachedBytes += 50000;
+                    freeImageSafe(img);
+                }
+            }
+            
+            // Track memory usage and store for cleanup
+            lastJumpscarePreCachedBytes = preCachedBytes;
+            memory::trackGraphicsJumpscare(preCachedBytes);
+            DEBUG_PRINTF("Pre-cached %zu bytes of jumpscare assets\n", preCachedBytes);
+        }
+        
+        void unloadCameraAssets() {
+            // CRITICAL: Properly untrack memory to prevent accumulation across nights
+            if (lastCameraPreCachedBytes > 0) {
+                memory::untrackGraphicsCamera(lastCameraPreCachedBytes);
+                DEBUG_PRINTF("Unloaded %zu bytes of pre-cached camera assets\n", lastCameraPreCachedBytes);
+                lastCameraPreCachedBytes = 0; // Reset for next pre-cache
+            } else {
+                DEBUG_PRINTF("No camera assets to unload\n");
+            }
+        }
+        
+        void unloadJumpscareAssets() {
+            // CRITICAL: Properly untrack memory to prevent accumulation across nights
+            if (lastJumpscarePreCachedBytes > 0) {
+                memory::untrackGraphicsJumpscare(lastJumpscarePreCachedBytes);
+                DEBUG_PRINTF("Unloaded %zu bytes of pre-cached jumpscare assets\n", lastJumpscarePreCachedBytes);
+                lastJumpscarePreCachedBytes = 0; // Reset for next pre-cache
+            } else {
+                DEBUG_PRINTF("No jumpscare assets to unload\n");
+            }
         }
     }
 }

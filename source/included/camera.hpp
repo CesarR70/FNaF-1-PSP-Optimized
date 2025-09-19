@@ -4,19 +4,20 @@
 #include "office.hpp"
 
 namespace camera{
-    extern int whichCamera;
-    extern bool isUsing;
+    extern volatile int whichCamera; // volatile for thread safety
+    extern volatile bool isUsing; // volatile for thread safety
 
-    extern bool opening;
-    extern bool closing;
+    extern volatile bool opening; // volatile for thread safety
+    extern volatile bool closing; // volatile for thread safety
 
-    extern std::string buttonState;
+    extern std::string buttonState; // thread safety handled differently for strings
 
     void reset();
 
     namespace render{
         void renderCamFlip();
         void renderCamera();
+        void renderCameraPaused();
         void renderUi();
     }
 

@@ -12,20 +12,20 @@ static const int kButtonPosY[kCamCount] = { 115,140,172,215,232,210,215,232,150,
 static const int kReticlePosX[kCamCount] = { 353,348,333,352,352,323,395,395,307,435,440 };
 static const int kReticlePosY[kCamCount] = { 115,140,172,215,232,210,215,232,150,202,150 };
 
-int whichCamera;
-bool isUsing = false;
+volatile int whichCamera; // volatile for thread safety
+volatile bool isUsing = false; // volatile for thread safety
 
-bool opening = false;
-bool closing = false;
+volatile bool opening = false; // volatile for thread safety
+volatile bool closing = false; // volatile for thread safety
 
-int whichFrame;
-int waitFrames = 1;
-int delay = 3;
+volatile int whichFrame; // volatile for thread safety
+volatile int waitFrames = 1; // volatile for thread safety
+volatile int delay = 3; // volatile for thread safety
 
-int reticleX = 353;
-int reticleY = 115;
+volatile int reticleX = 353; // volatile for thread safety
+volatile int reticleY = 115; // volatile for thread safety
 
-std::string buttonState = "up";
+std::string buttonState = "up"; // thread safety handled differently for strings
 
 // Note: Camera switching throttling removed - relying on existing kCamReloadBudget system
 // in image2.cpp plus double-check safety in render functions
@@ -50,6 +50,9 @@ void reset() {
     reticleY = 115;
 
     buttonState = "up";
+    
+    // Force camera reload after reset to ensure images are loaded
+    animatronic::setReload();
 }
 
 namespace render {
@@ -80,6 +83,36 @@ namespace render {
         // This prevents crashes during rapid camera switching + animatronic movement
         if (tex && tex->data) {
             drawSpriteAlpha(0, 0, 480, 272, tex, 0, 0, 0);
+        }
+    }
+
+    void renderCameraPaused() {
+        // Extra guards so we don't try to draw while cams are being (re)loaded
+        if (!isUsing || closing) return;
+        if (!sprite::UI::office::loaded || !animatronic::reloaded) return;
+        
+        // CRITICAL: Additional safety check to prevent crashes during high activity
+        // Don't render if animatronics are moving (reloading sprites)
+        if (animatronic::isMoving) return;
+
+        int cam = clamp(whichCamera, 0, kCamCount - 1);
+        
+        // Special case: Force cam1c to show foxy3 during attack
+        if (cam == 2) { // cam1c
+            // Load and render foxy3 image directly
+            auto* foxyTex = loadPng("romfs/gfx/office/camera/animatronic/cam1c/cam1c-foxy3.png");
+            if (foxyTex && foxyTex->data) {
+                drawSpriteAlpha(0, 0, 480, 272, foxyTex, 0, 0, 0);
+            }
+        } else {
+            // For other cameras, show current image (frozen state)
+            auto* tex = sprite::UI::office::cams[cam];
+            
+            // CRITICAL: Double-check the texture is still valid after array access
+            // This prevents crashes during rapid camera switching + animatronic movement
+            if (tex && tex->data) {
+                drawSpriteAlpha(0, 0, 480, 272, tex, 0, 0, 0);
+            }
         }
     }
 

@@ -15,6 +15,7 @@ source/customnight.o			\
 source/power.o					\
 source/camera.o					\
 source/animatronic.o			\
+source/memory.o					\
 source/time.o					\
 source/sixam.o					\
 source/dead.o					\
@@ -37,7 +38,7 @@ LIBS += -lpng -lz -ljpeg -lpspgum_vfpu -lpspgu -lpspgum -lpspvfpu -lpspvram \
 	-losl -lpspaudiolib -lpspaudio -lpspaudiocodec -lpspmp3 -lpsppower -lstdc++ -lm
 
 EXTRA_TARGETS = EBOOT.PBP
-PSP_EBOOT_TITLE = FNaF 1 PSP v1.5.4
+PSP_EBOOT_TITLE = FNaF 1 PSP 1.5.5
 PSP_EBOOT_ICON = ICON0.PNG
 PSP_EBOOT_PIC1 = PIC1.PNG
 

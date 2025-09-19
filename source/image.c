@@ -23,6 +23,14 @@
 #include "included/graphics.h"
 //#define Color unsigned long
 
+// Debug logging control for C files
+#define DEBUG_LOGGING 0
+#if DEBUG_LOGGING
+    #define DEBUG_PRINTF(...) printf(__VA_ARGS__)
+#else
+    #define DEBUG_PRINTF(...) do {} while(0)
+#endif
+
 #define MAX(X, Y) ((X) > (Y) ? (X) : (Y))
 int imageRamAlloc=0;
 void freeVRam(void *address,int length);
@@ -39,7 +47,7 @@ static int getNextPower2(int width)
 
 static void user_warning_fn(png_structp png_ptr, png_const_charp warning_msg)
 {
-	printf("PNGERROR: %s\n",warning_msg);
+	DEBUG_PRINTF("PNGERROR: %s\n",warning_msg);
 }
 
 Image *newImage(int width,int height)
@@ -56,7 +64,7 @@ Image *newImage(int width,int height)
 
 	image->data=(Color *)malloc(image->imageHeight*image->textureWidth*4);
 	imageRamAlloc+=image->imageHeight*image->textureWidth*4;
-//printf("NEWImage ram usage: %.4f MB\n",imageRamAlloc/(1024.0f*1024.0f));
+//DEBUG_PRINTF("NEWImage ram usage: %.4f MB\n",imageRamAlloc/(1024.0f*1024.0f));
 
 	return image;
 }
@@ -78,7 +86,7 @@ Image* loadPng(const char* filename)
 	image->format=GU_PSM_8888;
 	strcpy(image->filename,filename);
 
-//printf("Loading image '%s'\n",filename);
+//DEBUG_PRINTF("Loading image '%s'\n",filename);
 	char remix[256];
 	strcpy(remix,filename);
 	if(strstr(remix,".jpg")!=0) strcpy(strstr(remix,".jpg"),".png");
@@ -90,7 +98,7 @@ Image* loadPng(const char* filename)
 	if (png_ptr == NULL) {
 		free(image);
 		fclose(fp);
-		printf("Couldn't load 1 %s (%08x)\n",filename,(int)image);
+		DEBUG_PRINTF("Couldn't load 1 %s (%08x)\n",filename,(int)image);
 		return NULL;;
 	}
 	png_set_error_fn(png_ptr, (png_voidp) NULL, (png_error_ptr) NULL, user_warning_fn);
@@ -99,7 +107,7 @@ Image* loadPng(const char* filename)
 		free(image);
 		fclose(fp);
 		png_destroy_read_struct(&png_ptr, png_infopp_NULL, png_infopp_NULL);
-		printf("Couldn't load 2 %s (%08x)\n",filename,(int)image);
+		DEBUG_PRINTF("Couldn't load 2 %s (%08x)\n",filename,(int)image);
 		return NULL;
 	} 
 	png_init_io(png_ptr, fp);
@@ -110,7 +118,7 @@ Image* loadPng(const char* filename)
 		free(image);
 		fclose(fp);
 		png_destroy_read_struct(&png_ptr, png_infopp_NULL, png_infopp_NULL);
-		printf("Couldn't load 3 %s (%08x)\n",filename,(int)image);
+		DEBUG_PRINTF("Couldn't load 3 %s (%08x)\n",filename,(int)image);
 		return NULL;
 	}
 	image->imageWidth = width;
@@ -130,19 +138,19 @@ Image* loadPng(const char* filename)
 		free(image);
 		fclose(fp);
 		png_destroy_read_struct(&png_ptr, png_infopp_NULL, png_infopp_NULL);
-		printf("Couldn't load 4 %s (%08x)\n",filename,(int)image);
+		DEBUG_PRINTF("Couldn't load 4 %s (%08x)\n",filename,(int)image);
 		return NULL;
 	}
 	
 	imageRamAlloc+=image->imageHeight*image->textureWidth*4;
-//printf("LOADImage ram usage: %.4f MB\n",imageRamAlloc/(1024.0f*1024.0f));
+//DEBUG_PRINTF("LOADImage ram usage: %.4f MB\n",imageRamAlloc/(1024.0f*1024.0f));
 	line = (unsigned int *) malloc(width * 4);
 	if (!line) {
 		free(image->data);
 		free(image);
 		fclose(fp);
 		png_destroy_read_struct(&png_ptr, png_infopp_NULL, png_infopp_NULL);
-		printf("Couldn't load 5 %s (%08x)\n",filename,(int)image);
+		DEBUG_PRINTF("Couldn't load 5 %s (%08x)\n",filename,(int)image);
 		return NULL;
 	}
 	for (y = 0; y < height; y++) {
@@ -156,7 +164,7 @@ Image* loadPng(const char* filename)
 	png_read_end(png_ptr, info_ptr);
 	png_destroy_read_struct(&png_ptr, &info_ptr, png_infopp_NULL);
 	fclose(fp);
-	//printf("Loaded %s (%08x)\n",filename,image);
+	//DEBUG_PRINTF("Loaded %s (%08x)\n",filename,image);
 	return image;
 }
 /* 
@@ -177,7 +185,7 @@ ImageMip* loadPngMip(const char* filename)
 	image->format=GU_PSM_8888;
 	strcpy(image->filename,filename);
 
-//printf("Loading image '%s'\n",filename);
+//DEBUG_PRINTF("Loading image '%s'\n",filename);
 	char remix[256];
 	strcpy(remix,filename);
 	if(strstr(remix,".jpg")!=0) strcpy(strstr(remix,".jpg"),".png");
@@ -189,7 +197,7 @@ ImageMip* loadPngMip(const char* filename)
 	if (png_ptr == NULL) {
 		free(image);
 		fclose(fp);
-		printf("Couldn't load 1 %s (%08x)\n",filename,(int)image);
+		DEBUG_PRINTF("Couldn't load 1 %s (%08x)\n",filename,(int)image);
 		return NULL;;
 	}
 	png_set_error_fn(png_ptr, (png_voidp) NULL, (png_error_ptr) NULL, user_warning_fn);
@@ -198,7 +206,7 @@ ImageMip* loadPngMip(const char* filename)
 		free(image);
 		fclose(fp);
 		png_destroy_read_struct(&png_ptr, png_infopp_NULL, png_infopp_NULL);
-		printf("Couldn't load 2 %s (%08x)\n",filename,(int)image);
+		DEBUG_PRINTF("Couldn't load 2 %s (%08x)\n",filename,(int)image);
 		return NULL;
 	} 
 	png_init_io(png_ptr, fp);
@@ -209,7 +217,7 @@ ImageMip* loadPngMip(const char* filename)
 		free(image);
 		fclose(fp);
 		png_destroy_read_struct(&png_ptr, png_infopp_NULL, png_infopp_NULL);
-		printf("Couldn't load 3 %s (%08x)\n",filename,(int)image);
+		DEBUG_PRINTF("Couldn't load 3 %s (%08x)\n",filename,(int)image);
 		return NULL;
 	}
 	image->imageWidth = width;
@@ -245,11 +253,11 @@ ImageMip* loadPngMip(const char* filename)
 		free(image);
 		fclose(fp);
 		png_destroy_read_struct(&png_ptr, png_infopp_NULL, png_infopp_NULL);
-		printf("Couldn't load 4 %s (%08x)\n",filename,(int)image);
+		DEBUG_PRINTF("Couldn't load 4 %s (%08x)\n",filename,(int)image);
 		return NULL;
 	}
 	imageRamAlloc+=((image->imageHeight*image->textureWidth*4)+(image->imageHeight1*image->textureWidth1*4)+(image->imageHeight2*image->textureWidth2*4)+(image->imageHeight3*image->textureWidth3*4));
-//printf("LOADImage ram usage: %.4f MB\n",imageRamAlloc/(1024.0f*1024.0f));
+//DEBUG_PRINTF("LOADImage ram usage: %.4f MB\n",imageRamAlloc/(1024.0f*1024.0f));
 	line = (unsigned int *) malloc(width * 4);
 	line1 = (unsigned int *) malloc(image->imageWidth1 * 4);
 	line2 = (unsigned int *) malloc(image->imageWidth2 * 4);
@@ -262,7 +270,7 @@ ImageMip* loadPngMip(const char* filename)
 		free(image);
 		fclose(fp);
 		png_destroy_read_struct(&png_ptr, png_infopp_NULL, png_infopp_NULL);
-		printf("Couldn't load 5 %s (%08x)\n",filename,(int)image);
+		DEBUG_PRINTF("Couldn't load 5 %s (%08x)\n",filename,(int)image);
 		return NULL;
 	}
 	for (y = 0; y < height; y++) {
@@ -300,7 +308,7 @@ ImageMip* loadPngMip(const char* filename)
 	png_read_end(png_ptr, info_ptr);
 	png_destroy_read_struct(&png_ptr, &info_ptr, png_infopp_NULL);
 	fclose(fp);
-	//printf("Loaded %s (%08x)\n",filename,image);
+	//DEBUG_PRINTF("Loaded %s (%08x)\n",filename,image);
 	return image;
 } */
 
@@ -312,14 +320,14 @@ void freeImage(Image *image)
 	if(image->data && image->vram==0) {
 		free(image->data);
 		imageRamAlloc-=image->imageHeight*image->textureWidth*4;
-		printf("FREEImage '%s' from ram\n",image->filename);
+		DEBUG_PRINTF("FREEImage '%s' from ram\n",image->filename);
 	} else if( image->data && image->vram) {
 		int i;
 		for(i=0;i<64;i++) {
 			if(vimage[i]==image) vimage[i]=0;
 		}
 		freeVRam(image->data,image->imageHeight*image->textureWidth*4);
-		printf("FREEImage '%s' from vram\n",image->filename);
+		DEBUG_PRINTF("FREEImage '%s' from vram\n",image->filename);
 	}
 	image->data=0;
 	free(image);
@@ -336,7 +344,7 @@ void freeImageMip(ImageMip *image)
 		free(image->data2);
 		free(image->data3);
 		imageRamAlloc-=((image->imageHeight*image->textureWidth*4)+(image->imageHeight1*image->textureWidth1*4)+(image->imageHeight2*image->textureWidth2*4)+(image->imageHeight3*image->textureWidth3*4));
-		printf("FREEImage '%s' from ram\n",image->filename);
+		DEBUG_PRINTF("FREEImage '%s' from ram\n",image->filename);
 	} else if( image->data && image->vram) {
 		int i;
 		for(i=0;i<64;i++) {
@@ -346,7 +354,7 @@ void freeImageMip(ImageMip *image)
 		freeVRam(image->data1,image->imageHeight1*image->textureWidth1*4);
 		freeVRam(image->data2,image->imageHeight2*image->textureWidth2*4);
 		freeVRam(image->data3,image->imageHeight3*image->textureWidth3*4);
-		printf("FREEImage '%s' from vram\n",image->filename);
+		DEBUG_PRINTF("FREEImage '%s' from vram\n",image->filename);
 	}
 	image->data=0;
 	image->data1=0;
@@ -415,17 +423,17 @@ void reportVRam()
 	for(b=vramBlock;b!=0;b=b->next) {
 		i++;
 	}
-	printf("There is %d VRAM available in %d blocks (biggest is %d)\n",availableVRam,i,biggestVRam);
+	DEBUG_PRINTF("There is %d VRAM available in %d blocks (biggest is %d)\n",availableVRam,i,biggestVRam);
 	int used=0;
 	int count=1;
 	for(i=0;i<64;i++) {
 		if(vimage[i]) {
 			used+=vimage[i]->textureWidth*vimage[i]->textureHeight*4;
 			count++;
-			printf("vimage: %s\n",vimage[i]->filename);
+			DEBUG_PRINTF("vimage: %s\n",vimage[i]->filename);
 		}
 	}
-	printf("^^^ %d vimages use %d bytes of vram\n",count,used);
+	DEBUG_PRINTF("^^^ %d vimages use %d bytes of vram\n",count,used);
 }
 
 void resetVRam()
@@ -437,7 +445,7 @@ void resetVRam()
 	vramBlock->addr=nextVRam;
 	vramBlock->length=availableVRam;
 	biggestVRam=0x200000-0x154000;
-	printf("reset: "); reportVRam();
+	DEBUG_PRINTF("reset: "); reportVRam();
 }
 
 void *allocVRam(int length)
@@ -477,10 +485,10 @@ void *allocVRam(int length)
 			if(b->length>biggestVRam) biggestVRam=b->length;
 			availableVRam+=b->length;
 		}
-		printf("alloc: "); reportVRam();
+		DEBUG_PRINTF("alloc: "); reportVRam();
 		return out;
 	}
-	printf("ASSERT COULDN'T ALLOC: "); reportVRam();
+	DEBUG_PRINTF("ASSERT COULDN'T ALLOC: "); reportVRam();
 	return 0;
 }
 
@@ -531,7 +539,7 @@ void freeVRam(void *address,int length)
 
 		availableVRam+=b->length;
 	}
-	printf("post-free vram: "); reportVRam();
+	DEBUG_PRINTF("post-free vram: "); reportVRam();
 	// Note: 'b' and 'curr' are already freed above in the merge logic
 }
 
@@ -543,25 +551,25 @@ void swizzleFast(Image *source)
 	unsigned long* out;
 
 	if(swizzleToVRam && (out=(unsigned long*)allocVRam(width*height))) {
-		printf("texture to vram\n");
+		DEBUG_PRINTF("texture to vram\n");
 		source->vram=1;
 		int i;
 		// Safety check - ensure we don't exceed array bounds
 		for(i=0;i<64 && i<sizeof(vimage)/sizeof(vimage[0]);i++) {
 			if(vimage[i]==0) {
 				vimage[i]=source;
-				printf("^^^Image '%s' to vram\n",source->filename);
+				DEBUG_PRINTF("^^^Image '%s' to vram\n",source->filename);
 				break;
 			}	
 		}
 	} else {
 		out=(unsigned long *)malloc(width*height);
 		if(!out) {
-			printf("^^^couldn't allocate memory for swizzling!\n");
+			DEBUG_PRINTF("^^^couldn't allocate memory for swizzling!\n");
 			return;
 		}	// couldn't do it!
 		imageRamAlloc+=width*height;
-		//printf("SWIZ^Image ram usage: %.4f MB\n",imageRamAlloc/(1024.0f*1024.0f));
+		//DEBUG_PRINTF("SWIZ^Image ram usage: %.4f MB\n",imageRamAlloc/(1024.0f*1024.0f));
 	}
 	unsigned int blockx, blocky;
 	int i;
@@ -592,7 +600,7 @@ void swizzleFast(Image *source)
 	}
 	free(source->data);
 	imageRamAlloc-=width*height;
-	printf("SWIZvImage ram usage: %.4f MB\n",imageRamAlloc/(1024.0f*1024.0f));
+	DEBUG_PRINTF("SWIZvImage ram usage: %.4f MB\n",imageRamAlloc/(1024.0f*1024.0f));
 	source->data=(Color *)out;
 	source->isSwizzled=1;
 }
@@ -608,24 +616,24 @@ void swizzleFast(Image *source)
 	height = ((source->imageHeight)+(source->imageHeight1)+(source->imageHeight2)+(source->imageHeight3));
 
 	if(swizzleToVRam && (out=(unsigned long*)allocVRam(width*height))) {
-		printf("texture to vram\n");
+		DEBUG_PRINTF("texture to vram\n");
 		source->vram=1;
 		int i;
 		for(i=0;i<64;i++) {
 			if(vimagemip[i]==0) {
 				vimagemip[i]=source;
-				printf("^^^Image '%s' to vram\n",source->filename);
+				DEBUG_PRINTF("^^^Image '%s' to vram\n",source->filename);
 				break;
 			}	
 		}
 	} else {
 		out=(unsigned long *)malloc(width*height);
 		if(!out) {
-			printf("^^^couldn't allocate memory for swizzling!\n");
+			DEBUG_PRINTF("^^^couldn't allocate memory for swizzling!\n");
 			return;
 		}	// couldn't do it!
 		imageRamAlloc+=width*height;
-		//printf("SWIZ^Image ram usage: %.4f MB\n",imageRamAlloc/(1024.0f*1024.0f));
+		//DEBUG_PRINTF("SWIZ^Image ram usage: %.4f MB\n",imageRamAlloc/(1024.0f*1024.0f));
 	}
 	unsigned int blockx, blocky;
 	int i;
@@ -659,7 +667,7 @@ void swizzleFast(Image *source)
 	free(source->data2);
 	free(source->data3);
 	imageRamAlloc-=width*height;
-	printf("SWIZvImage ram usage: %.4f MB\n",imageRamAlloc/(1024.0f*1024.0f));
+	DEBUG_PRINTF("SWIZvImage ram usage: %.4f MB\n",imageRamAlloc/(1024.0f*1024.0f));
 	source->data=(Color *)out;
 	source->isSwizzled=1;
 } */
@@ -745,7 +753,7 @@ struct FastFont {
 int loadFastFont(struct FastFont *font,const char *filename)
 {
 	font->height=1;
-	printf("Loading font '%s'\n",filename);
+	DEBUG_PRINTF("Loading font '%s'\n",filename);
 	if(font->texture) return 1;	// already loaded.
 	FILE *file=fopen(filename,"r");
 	if(!file) {
@@ -793,12 +801,12 @@ int loadFastFont(struct FastFont *font,const char *filename)
 #ifdef _PSP
 			swizzleFast(font->texture);
 #endif
-			if(font->texture) printf("Loaded %s\n",imagePath);
-			else printf("Could not find '%s'\n",imagePath);
+			if(font->texture) DEBUG_PRINTF("Loaded %s\n",imagePath);
+			else DEBUG_PRINTF("Could not find '%s'\n",imagePath);
 		}
 	}
 	if(!font->texture) return 0;
-	printf("Success for font '%s'\n",filename);
+	DEBUG_PRINTF("Success for font '%s'\n",filename);
 	return 1;
 }
 
@@ -826,7 +834,7 @@ void extentMessage(int *w,int *h, enum FontId fontId, const char *message)
 		if(font->glyph[ch].active) {
 			*w+=font->glyph[ch].w+font->glyph[ch].kern_right+1;
 		} else {
-			printf("Missing font char: '%c'\n",(char)ch);
+			DEBUG_PRINTF("Missing font char: '%c'\n",(char)ch);
 			*w+=font->height;
 		}
 	}
@@ -838,7 +846,7 @@ void drawMessage(int x,int y, enum FontId fontId, const char *message)
 	struct FastFont *font=&fastFont[fontId];
 	unsigned int i;
 	if(!font->texture) return;
-	//printf("Message '%s'\n",message);
+	//DEBUG_PRINTF("Message '%s'\n",message);
 	for(i=0;i<strlen(message);i++) {
 		int ch=(unsigned char)message[i];
 		if(font->glyph[ch].active) {
@@ -849,11 +857,11 @@ void drawMessage(int x,int y, enum FontId fontId, const char *message)
 				y+font->glyph[ch].kern_bottom);
 			x+=font->glyph[ch].w+font->glyph[ch].kern_right+1;
 		} else {
-			printf("Missing font char: '%c'\n",(char)ch);
+			DEBUG_PRINTF("Missing font char: '%c'\n",(char)ch);
 			x+=font->height;
 		}
 	}
-	//printf("Done '%s'\n",message);
+	//DEBUG_PRINTF("Done '%s'\n",message);
 }
 
 void drawMessageAlpha(int x,int y, enum FontId fontId, const char *message,int alpha)
@@ -861,7 +869,7 @@ void drawMessageAlpha(int x,int y, enum FontId fontId, const char *message,int a
 	struct FastFont *font=&fastFont[fontId];
 	unsigned int i;
 	if(!font->texture) return;
-	//printf("Message '%s'\n",message);
+	//DEBUG_PRINTF("Message '%s'\n",message);
 	for(i=0;i<strlen(message);i++) {
 		int ch=(unsigned char)message[i];
 		if(font->glyph[ch].active) {
@@ -872,11 +880,11 @@ void drawMessageAlpha(int x,int y, enum FontId fontId, const char *message,int a
 				y+font->glyph[ch].kern_bottom,alpha);
 			x+=font->glyph[ch].w+font->glyph[ch].kern_right+1;
 		} else {
-			printf("Missing font char: '%c'\n",(char)ch);
+			DEBUG_PRINTF("Missing font char: '%c'\n",(char)ch);
 			x+=font->height;
 		}
 	}
-	//printf("Done '%s'\n",message);
+	//DEBUG_PRINTF("Done '%s'\n",message);
 }
 
 void drawMessageFormat(int x,int y,enum FontId fontId, const char *message)
@@ -938,7 +946,7 @@ Image *loadCell(const char *fname)
 			cell[cellNext++].image=image;
 		}
 	}
-	if(!image) printf("Could not load cell '%s'\n",fname);
+	if(!image) DEBUG_PRINTF("Could not load cell '%s'\n",fname);
 	if(!image) return 0;
 	return image;
 }
@@ -947,7 +955,7 @@ void drawCell(int x,int y,const char *fname)
 {
 	Image *image=loadCell(fname);
 	if(!image) return;
-	printf("Drawing cell '%s', loaded successfully\n",fname);
+	DEBUG_PRINTF("Drawing cell '%s', loaded successfully\n",fname);
 	if(x+image->imageWidth<0 || y+image->imageHeight<0 || x>SCREEN_WIDTH || y>SCREEN_HEIGHT) return;
 
 	drawSprite(0,0,image->imageWidth,image->imageHeight,image,x,y);

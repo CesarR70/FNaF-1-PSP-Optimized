@@ -235,4 +235,12 @@ namespace text{
         void loadNightText();
         void unloadNightText();
     }
+    
+    // Pre-caching System
+    namespace preload {
+        void preloadCameraAssets();
+        void preloadJumpscareAssets();
+        void unloadCameraAssets();
+        void unloadJumpscareAssets();
+    }
 }

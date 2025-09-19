@@ -67,6 +67,11 @@ namespace ending {
         // Switch state away from ending before we load menu assets.
         state::isEnding = false;
 
+        // CRITICAL: Unload pre-cached assets to prevent interference with menu system
+        text::preload::unloadCameraAssets();
+        text::preload::unloadJumpscareAssets();
+        sfx::preload::unloadCriticalAudio();
+
         // Load menu assets
         image::menu::loadMenuBackground();
         image::menu::loadLogo();

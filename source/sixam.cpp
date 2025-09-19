@@ -128,6 +128,11 @@ namespace sixam {
             case Pending::Menu: {
                 save::readData();
 
+                // CRITICAL: Unload pre-cached assets to prevent interference with menu system
+                text::preload::unloadCameraAssets();
+                text::preload::unloadJumpscareAssets();
+                sfx::preload::unloadCriticalAudio();
+
                 image::menu::loadMenuBackground();
                 image::menu::loadLogo();
                 sprite::menu::loadStar();

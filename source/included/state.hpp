@@ -11,6 +11,7 @@ namespace state{
     extern bool isDead;
     extern bool isEnding;
     extern bool isJumpscare;
+    extern volatile bool isFoxyAttackPaused; // volatile for thread safety
 
     //extern bool endOfNight;
 }

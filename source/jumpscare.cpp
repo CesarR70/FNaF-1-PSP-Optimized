@@ -46,11 +46,17 @@ namespace render {
         // CRITICAL: Add null check to prevent crashes during high activity
         // This prevents accessing freed or uninitialized sprite data
         if (sprite::n_jumpscare::jumpscareAnim[idx]) {
-            drawSpriteAlpha(
-                0, 0, 480, 272,
-                sprite::n_jumpscare::jumpscareAnim[idx],
-                0, 0, 0
-            );
+            // Additional safety: verify the sprite data is valid before rendering
+            Image* sprite = sprite::n_jumpscare::jumpscareAnim[idx];
+            if (sprite && sprite->data) {
+                drawSpriteAlpha(
+                    0, 0, 480, 272,
+                    sprite,
+                    0, 0, 0
+                );
+            } else {
+                DEBUG_PRINTF("⚠️  WARNING: Invalid jumpscare sprite data at index %d\n", idx);
+            }
         }
     }
 }

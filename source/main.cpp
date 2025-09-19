@@ -171,9 +171,9 @@ void resetMain(){
                 
         timegame::reset();
         office::reset();
-        camera::reset();
         power::reset();
         animatronic::reset();
+        camera::reset(); // Reset camera AFTER animatronic to ensure reload worker is ready
         nightinfo::reset();
         sixam::reset();
         jumpscare::reset();
@@ -244,9 +244,24 @@ void handleOfficeState(SceCtrlData ctrlData) {
 
     // Render camera flipping and UI
     camera::render::renderCamFlip();
-    if (camera::isUsing && animatronic::reloaded && sprite::UI::office::loaded &&
-        animatronic::foxy::position != 3 && animatronic::foxy::position != 4) {
-        camera::render::renderCamera();
+    // CRITICAL: Read pause state atomically to prevent race conditions
+    bool foxyPaused = false;
+    // Use semaphore to safely read Foxy attack state
+    if (animatronic::FoxyStateSemaphore >= 0) {
+        sceKernelWaitSema(animatronic::FoxyStateSemaphore, 1, nullptr);
+        foxyPaused = state::isFoxyAttackPaused;
+        sceKernelSignalSema(animatronic::FoxyStateSemaphore, 1);
+    } else {
+        foxyPaused = state::isFoxyAttackPaused; // Fallback
+    }
+    if (camera::isUsing && animatronic::reloaded && sprite::UI::office::loaded) {
+        if (foxyPaused) {
+            // During Foxy attack pause, show current camera images (including foxy3 on cam1c)
+            camera::render::renderCameraPaused();
+        } else {
+            // Normal camera rendering - always render cameras unless paused
+            camera::render::renderCamera();
+        }
     }
 
 
@@ -433,6 +448,10 @@ void handlePoweroutState(){
     powerout::render::renderPowerout();
     powerout::animate::animatePowerOut();
 
+    // CRITICAL: Use enhanced reset for powerout transitions to prevent deadlock inheritance
+    // Powerout can lead to death, so we need to ensure clean state
+    animatronic::resetForDeath();
+    
     resetMain();
 }
 
@@ -441,6 +460,12 @@ void handleJumpscareState(){
     jumpscare::render::renderJumpscare();
     jumpscare::animate::animateJumpscare();
 
+    // CRITICAL: Use enhanced reset for jumpscare transitions to prevent deadlock inheritance
+    // Jumpscares lead to death, so we need to ensure clean state
+    animatronic::resetForDeath();
+
+    // Don't call resetMain() here - it would cause double-reset
+    // The resetForDeath() already handles the necessary cleanup
     reseted = false;
 
 }
@@ -458,7 +483,13 @@ void handleDeadState(){
 
     dead::wait::waitForFrames();
 
-    resetMain();
+    // CRITICAL: Use enhanced reset for death transitions to prevent deadlock inheritance
+    // This ensures the reload worker state is properly cleared when returning to menu
+    animatronic::resetForDeath();
+    
+    // Don't call resetMain() here - it would cause double-reset
+    // The resetForDeath() already handles the necessary cleanup
+    reseted = false;
 }
 
 void handleState(SceCtrlData ctrlData) {

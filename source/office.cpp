@@ -8,19 +8,19 @@ namespace office {
     int speedMultiplier = 5;
     std::string dir = "none";
 
-    int usageCountdown = 10;
-    bool leftEdge = false;
-    bool rightEdge = true;
+    volatile int usageCountdown = 10; // volatile for thread safety
+    volatile bool leftEdge = false; // volatile for thread safety
+    volatile bool rightEdge = true; // volatile for thread safety
 
-    bool leftOn = false;
-    bool rightOn = false;
-    bool leftClosed = false;
-    bool rightClosed = false;
+    volatile bool leftOn = false; // volatile for thread safety
+    volatile bool rightOn = false; // volatile for thread safety
+    volatile bool leftClosed = false; // volatile for thread safety
+    volatile bool rightClosed = false; // volatile for thread safety
 
-    bool closingLeft = false;
-    bool openingLeft = false;
-    bool closingRight = false;
-    bool openingRight = false;
+    volatile bool closingLeft = false; // volatile for thread safety
+    volatile bool openingLeft = false; // volatile for thread safety
+    volatile bool closingRight = false; // volatile for thread safety
+    volatile bool openingRight = false; // volatile for thread safety
 
     std::string state = "none";
     std::string buttonState = "up";

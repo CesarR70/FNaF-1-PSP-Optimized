@@ -11,6 +11,7 @@ namespace state{
     bool isDead = false;
     bool isEnding = false;
     bool isJumpscare = false;
+    volatile bool isFoxyAttackPaused = false; // volatile for thread safety
 
     //bool endOfNight = false;
 }
